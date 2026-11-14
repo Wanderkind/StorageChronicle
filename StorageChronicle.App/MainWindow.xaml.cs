@@ -23,6 +23,8 @@ public partial class MainWindow : Window
     private bool _loadingPage;
     private int _pageOffset;
     private const int PageSize = 100;
+    private bool _shadowReadingInProgress;
+    private bool _shadowHistoryUpdating;
 
     private sealed record SnapshotChoice(long Id, string RootPath, DateTimeOffset When, int Files)
     {
@@ -36,6 +38,15 @@ public partial class MainWindow : Window
     private sealed record FolderRow(string Net, string Growth, string Reduction,
         string ChangedGroups, string UnknownGroups, string FolderPath);
 
+    private sealed record ShadowChoice(long Id, DateTimeOffset When, ShadowProbeStatus Status)
+    {
+        public string Display =>
+            $"#{Id} · {When.ToLocalTime():yyyy-MM-dd HH:mm:ss} · {Status}";
+    }
+
+    private sealed record ShadowAreaRow(
+        string Source, string Destination, string Used, string Allocated, string Maximum);
+
     public MainWindow()
     {
         InitializeComponent();
@@ -47,6 +58,7 @@ public partial class MainWindow : Window
             _repository = new SqliteSnapshotRepository(dbPath);
             DatabaseLocationText.Text = "Metadata database (local only): " + dbPath;
             RefreshChoices();
+            RefreshShadowHistory();
         }
         catch (Exception ex)
         {
@@ -644,6 +656,111 @@ public partial class MainWindow : Window
     {
         try { await LoadCoveragePageAsync(checked(_coveragePageOffset + PageSize)); }
         catch (Exception ex) { CoverageSummaryText.Text = "Page query failed: " + ex.Message; }
+    }
+
+    private void RefreshShadowHistory()
+    {
+        if (_repository is null) return;
+        var choices = _repository.ListShadowStorageMeasurements(100)
+            .Select(x => new ShadowChoice(x.Id, x.ObservedUtc, x.Status))
+            .ToArray();
+        _shadowHistoryUpdating = true;
+        try
+        {
+            ShadowHistoryChoice.ItemsSource = choices;
+            ShadowHistoryChoice.SelectedIndex = choices.Length > 0 ? 0 : -1;
+        }
+        finally
+        {
+            _shadowHistoryUpdating = false;
+        }
+        ShowSelectedShadowMeasurement();
+    }
+
+    private void ShadowHistoryChoice_SelectionChanged(
+        object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!_shadowHistoryUpdating)
+            ShowSelectedShadowMeasurement();
+    }
+
+    private void ShowSelectedShadowMeasurement()
+    {
+        var store = _repository;
+        if (store is null || ShadowHistoryChoice.SelectedItem is not ShadowChoice selected)
+        {
+            ShadowSummaryText.Text = "No shadow-storage measurement selected.";
+            ShadowAreasGrid.ItemsSource = null;
+            return;
+        }
+
+        try
+        {
+            ShadowStorageMeasurement latest =
+                store.LoadShadowStorageMeasurement(selected.Id);
+            var previous = (ShadowHistoryChoice.ItemsSource as IEnumerable<ShadowChoice>)?
+                .Where(x => x.Id < latest.Id).OrderByDescending(x => x.Id).FirstOrDefault();
+            ShadowStorageMeasurement? earlier = previous is null ? null :
+                store.LoadShadowStorageMeasurement(previous.Id);
+
+            string volume = System.IO.Path.GetPathRoot(RootPathInput.Text.Trim()) ?? @"C:\";
+            var delta = earlier is null ? null :
+                ShadowStorageEvaluator.Compare(earlier, latest, volume);
+
+            string beforeText = delta is null ? "no previous reading" :
+                Bytes(delta.EarlierAllocatedBytes);
+            string allocatedText = Bytes(latest.AllocatedOnDrive(volume));
+            string usedText = Bytes(latest.UsedOnDrive(volume));
+            string deltaText = delta is null ? "not available" :
+                Signed(delta.AllocatedDeltaBytes);
+
+            ShadowSummaryText.Text =
+                $"Reading #{latest.Id} at {latest.ObservedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss} " +
+                $"({latest.Status}) · {latest.Areas.Count:N0} associations\n" +
+                $"Allocated on {volume}: {allocatedText} · Used: {usedText} · " +
+                $"Previous allocated: {beforeText} · Change: {deltaText}\n" +
+                $"{latest.Diagnostic ?? "No WMI query errors recorded."}\n" +
+                "Only comparable timestamped readings show a change. These values are not " +
+                "subtracted from a historical unexplained residual.";
+
+            ShadowAreasGrid.ItemsSource = latest.Areas.Select(x =>
+                new ShadowAreaRow(
+                    x.SourceDrive ?? x.SourceVolumeReference,
+                    x.DiffDrive ?? x.DiffVolumeReference,
+                    Bytes(x.UsedBytes), Bytes(x.AllocatedBytes),
+                    Bytes(x.MaximumBytes))).ToArray();
+        }
+        catch (Exception ex)
+        {
+            ShadowSummaryText.Text = "Cannot load shadow-storage reading: " + ex.Message;
+            ShadowAreasGrid.ItemsSource = null;
+        }
+    }
+
+    private async void MeasureShadowButton_Click(object sender, RoutedEventArgs e)
+    {
+        var store = _repository;
+        if (_shadowReadingInProgress || store is null) return;
+        _shadowReadingInProgress = true;
+        MeasureShadowButton.IsEnabled = false;
+        ShadowSummaryText.Text = "Querying Windows WMI shadow-storage records …";
+        try
+        {
+            ShadowStorageMeasurement measured =
+                await Task.Run(store.MeasureShadowStorageNow);
+            RefreshShadowHistory();
+            StatusText.Text = $"Shadow-storage reading #{measured.Id} saved: " +
+                $"{measured.Status}, {measured.Areas.Count:N0} associations.";
+        }
+        catch (Exception ex)
+        {
+            ShadowSummaryText.Text = "Shadow-storage measurement failed: " + ex.Message;
+        }
+        finally
+        {
+            _shadowReadingInProgress = false;
+            MeasureShadowButton.IsEnabled = true;
+        }
     }
 
     private static string FormatReconciliation(ReconciliationEvidence r)
