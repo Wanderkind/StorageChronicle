@@ -178,6 +178,10 @@
                         <RowDefinition Height="145"/>
                     </Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" LastChildFill="True" Margin="0,0,0,8">
+                        <Button x:Name="CopyVssCommandsButton" DockPanel.Dock="Right"
+                                Content="Copy admin commands" Padding="10,5" Margin="8,0,0,0"
+                                ToolTip="Copy read-only /on and /for commands for an administrator PowerShell session"
+                                Click="CopyVssCommandsButton_Click"/>
                         <Button x:Name="CheckVssAdminButton" DockPanel.Dock="Right"
                                 Content="Check via vssadmin" Padding="10,5" Margin="8,0,0,0"
                                 ToolTip="Read-only shadow-storage listing for the selected scan drive; no numeric parsing or elevation"
