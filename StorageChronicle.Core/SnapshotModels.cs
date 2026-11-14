@@ -11,6 +11,25 @@ public sealed record FileRecord(
 
 public sealed record ScanProgress(int FileCount, int NoticeCount, string CurrentDirectory);
 
+/// <summary>Lightweight totals returned by the streaming scanner.</summary>
+public sealed record DiskScanSummary(
+    string RootPath,
+    string VolumeRoot,
+    DateTimeOffset StartedUtc,
+    DateTimeOffset FinishedUtc,
+    long? VolumeCapacityBytes,
+    long? FreeBytesBefore,
+    long? FreeBytesAfter,
+    int FileCount,
+    int NoticeCount,
+    int ErrorCount);
+
+/// <summary>Only a bounded number of sample issues is retained in application memory.</summary>
+public sealed record SavedScanResult(
+    long Id,
+    DiskScanSummary Summary,
+    IReadOnlyList<ScanIssue> FirstIssues);
+
 public enum IssueSeverity { Info, Warning, Error }
 
 public sealed record ScanIssue(string Path, string Code, string Detail, IssueSeverity Severity);
