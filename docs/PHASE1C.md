@@ -21,7 +21,7 @@ Phase 1B already writes file records directly into SQLite during a scan. Phase 1
 3. File groups with many hard links still need an in-memory list of paths. The group is bounded by the size of one identity group, not by the size of the drive.
 4. SQLite caches comparison changes persistently. This can grow the database; retention or cleanup controls are a future milestone. **Never manually delete the original snapshot database simply to clear comparison caches.**
 5. The database contains sensitive paths and should remain off GitHub and backed up. On a C: scan, prefer a location on D: for the database.
-6. A custom SC_ORDINAL_NOCASE collation must be registered by the application on every database connection using the new comparison-results index.
+6. The comparison's input-file sorting query uses a custom SC_ORDINAL_NOCASE collation registered by the new application. The persistent result-page index uses SQLite's built-in NOCASE collation for older-build compatibility (ASCII-only secondary tie-break sorting).
 7. No VSS, USN journal, system metadata attribution, elevation, background scheduling or deletion is included.
 8. Results are read-only diagnostics, not a justification to remove any protected Windows file.
 
