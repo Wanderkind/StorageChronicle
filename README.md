@@ -2,7 +2,7 @@
 
 A local, read-only Windows disk-space **snapshot comparator** built with .NET 10 and WPF.
 
-**Status:** The user confirmed that Phase 1F's Reconciliation view displays correctly on Windows. Phase 1G read-only WMI shadow-storage observations are **not yet compiled or tested on Windows**. Do not delete files based on unassigned residuals; verify source paths, timestamps and measurement limitations.
+**Status:** Phase 1G launched on Windows and saved a shadow-storage reading, but the Windows client WMI query reported an initialization failure and saved Unavailable (not zero). The read-only vssadmin fallback is now committed but **not yet built or tested on Windows**. Do not delete files based on unassigned residuals; verify paths, timestamps and measurement limitations.
 
 ## What it does now
 
@@ -16,7 +16,7 @@ A local, read-only Windows disk-space **snapshot comparator** built with .NET 10
 - Phase 1E adds **Scan coverage**, allowing inspection of saved scan read failures, missing allocation and identity metadata, exclusion categories, and the complete paginated issue list—without rescanning.
 - Phase 1F adds a **Reconciliation** tab: observed free-space loss, constant-capacity used-space change, known file allocation delta, unassigned residual, scan-time free-space drift, and explicit measurement limitations.
 - Separates observed free-space loss from the **provisional residual** it cannot explain; missing or changed volume capacity disables used-space reconciliation rather than substituting zero.
-- Phase 1G adds an opt-in **Shadow storage** tab with timestamped, read-only WMI measurements. It does not retroactively attribute VSS usage to earlier scans or subtract it from residuals.
+- Phase 1G adds an opt-in **Shadow storage** tab with timestamped WMI measurements (may be unavailable on Windows clients) and a separate read-only **Check via vssadmin** fallback showing unparsed localized diagnostic output. Neither retroactively attributes VSS usage to earlier scans nor subtracts it from residuals.
 - Never deletes or modifies scanned files.
 
 ## Start on Windows
