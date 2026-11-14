@@ -112,9 +112,12 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" TextWrapping="Wrap"
-                               Foreground="DimGray" Margin="0,0,0,6"
-                               Text="Cumulative allocation changes including subdirectories. Parent and child totals overlap; do not add rows. File moves can shift allocation between folders without consuming volume space."/>
+                    <StackPanel Grid.Row="0" Margin="0,0,0,6">
+                        <TextBlock x:Name="FolderTotalsText" Text="No folder summary loaded"
+                                   FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,3"/>
+                        <TextBlock TextWrapping="Wrap" Foreground="DimGray"
+                                   Text="Cumulative allocation changes including subdirectories. Parent and child totals overlap; do not add rows. Directly contained root files appear in root totals. File moves can shift allocation between folders without consuming volume space."/>
+                    </StackPanel>
                     <DataGrid x:Name="FolderGrid" Grid.Row="1"
                               AutoGenerateColumns="False" IsReadOnly="True"
                               CanUserAddRows="False" EnableRowVirtualization="True"
