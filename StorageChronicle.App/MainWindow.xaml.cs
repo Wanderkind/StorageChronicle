@@ -8,7 +8,12 @@ public partial class MainWindow : Window
 {
     private SqliteSnapshotRepository? _repository;
     private CancellationTokenSource? _scanCancellation;
+    private CancellationTokenSource? _compareCancellation;
+    private StoredComparison? _activeComparison;
     private bool _updatingChoices;
+    private bool _loadingPage;
+    private int _pageOffset;
+    private const int PageSize = 100;
 
     private sealed record SnapshotChoice(long Id, string RootPath, DateTimeOffset When, int Files)
     {
@@ -59,6 +64,7 @@ public partial class MainWindow : Window
         var choices = _repository.List()
             .Select(s => new SnapshotChoice(s.Id, s.RootPath, s.StartedUtc, s.FileCount))
             .ToList();
+        ClearComparisonView();
         _updatingChoices = true;
         try
         {
@@ -76,14 +82,20 @@ public partial class MainWindow : Window
         System.Windows.Controls.SelectionChangedEventArgs e)
     {
         if (!_updatingChoices)
+        {
+            ClearComparisonView();
             UpdateBaselineChoices();
+        }
     }
 
     private void BaselineChoice_SelectionChanged(object sender,
         System.Windows.Controls.SelectionChangedEventArgs e)
     {
         if (!_updatingChoices)
+        {
+            ClearComparisonView();
             UpdateCompareButtonState();
+        }
     }
 
     private void UpdateBaselineChoices()
@@ -117,6 +129,7 @@ public partial class MainWindow : Window
     {
         CompareButton.IsEnabled =
             _repository is not null && _scanCancellation is null &&
+            _compareCancellation is null && !_loadingPage &&
             BaselineChoice.SelectedItem is SnapshotChoice baseline &&
             CurrentChoice.SelectedItem is SnapshotChoice current &&
             baseline.Id < current.Id &&
@@ -231,29 +244,37 @@ public partial class MainWindow : Window
             MessageBox.Show("Select an earlier baseline from the same directory.");
             return;
         }
+
+        _compareCancellation = new CancellationTokenSource();
+        ScanButton.IsEnabled = false;
+        BrowseButton.IsEnabled = false;
         CompareButton.IsEnabled = false;
-        StatusText.Text = "Comparing saved snapshots …";
+        CancelCompareButton.IsEnabled = true;
+        PreviousPageButton.IsEnabled = false;
+        NextPageButton.IsEnabled = false;
+        StatusText.Text = "Comparing saved snapshots on disk …";
+        ClearComparisonView();
         try
         {
-            ComparisonReport report = await Task.Run(() =>
-                SnapshotComparer.Compare(store.Load(baseline.Id),
-                                         store.Load(current.Id)));
-            ChangesGrid.ItemsSource = report.Changes.Select(c => new ChangeRow(
-                c.Kind.ToString(), Signed(c.AllocatedDeltaBytes),
-                c.BeforePaths.Count == 0 ? "—" : Bytes(c.BeforeAllocatedBytes),
-                c.AfterPaths.Count == 0 ? "—" : Bytes(c.AfterAllocatedBytes),
-                c.PrimaryPath)).ToList();
-
+            var token = _compareCancellation.Token;
+            StoredComparison report = await Task.Run(
+                () => store.CompareAndStore(baseline.Id, current.Id, token));
+            _activeComparison = report;
+            await LoadChangePageAsync(0);
             StatusText.Text = $"Comparison #{baseline.Id} → #{current.Id}: " +
-                $"{report.Changes.Count:N0} changed file groups";
+                $"{report.ChangeCount:N0} changed file groups";
             SummaryText.Text =
                 $"Observed volume used-space delta: {Signed(report.VolumeUsedDeltaBytes)}\n" +
                 $"Known file allocation delta:     {Signed(report.KnownAllocatedDeltaBytes)}\n" +
                 $"Provisional unexplained delta:    {Signed(report.UnexplainedDeltaBytes)}\n" +
                 $"Changes with unknown allocation:  {report.UnknownAllocationChanges:N0}\n\n" +
                 "CAVEATS\n" + string.Join("\n", report.Caveats.Select(x => "• " + x)) +
-                "\n\nA nonzero residual is not proof that Windows itself consumed that space. " +
-                "Measurements are not atomic and some system usage is outside this scanner.";
+                "\n\nResults are paged from SQLite. A nonzero residual does not identify " +
+                "a particular Windows component, and measurements are not atomic.";
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText.Text = "Comparison cancelled; incomplete results were rolled back.";
         }
         catch (Exception ex)
         {
@@ -261,8 +282,84 @@ public partial class MainWindow : Window
         }
         finally
         {
+            _compareCancellation.Dispose();
+            _compareCancellation = null;
+            CancelCompareButton.IsEnabled = false;
+            ScanButton.IsEnabled = true;
+            BrowseButton.IsEnabled = true;
             UpdateCompareButtonState();
+            UpdatePageButtons();
         }
+    }
+
+    private void CancelCompareButton_Click(object sender, RoutedEventArgs e) =>
+        _compareCancellation?.Cancel();
+
+    private void ClearComparisonView()
+    {
+        _activeComparison = null;
+        _pageOffset = 0;
+        ChangesGrid.ItemsSource = null;
+        PageIndicatorText.Text = "No comparison loaded";
+        PreviousPageButton.IsEnabled = false;
+        NextPageButton.IsEnabled = false;
+    }
+
+    private void UpdatePageButtons()
+    {
+        StoredComparison? report = _activeComparison;
+        PreviousPageButton.IsEnabled =
+            report is not null && _pageOffset > 0 && !_loadingPage &&
+            _compareCancellation is null;
+        NextPageButton.IsEnabled =
+            report is not null && (long)_pageOffset + PageSize < report.ChangeCount &&
+            !_loadingPage && _compareCancellation is null;
+    }
+
+    private async Task LoadChangePageAsync(int offset)
+    {
+        var store = _repository;
+        var report = _activeComparison;
+        if (store is null || report is null || _loadingPage)
+            return;
+        _loadingPage = true;
+        UpdatePageButtons();
+        try
+        {
+            ComparisonPage page = await Task.Run(() =>
+                store.ReadComparisonPage(report.Id, offset, PageSize));
+            if (_activeComparison?.Id != page.ComparisonId)
+                return;
+            _pageOffset = offset;
+            ChangesGrid.ItemsSource = page.Changes.Select(c => new ChangeRow(
+                c.Kind.ToString(), Signed(c.AllocatedDeltaBytes),
+                c.BeforePaths.Count == 0 ? "—" : Bytes(c.BeforeAllocatedBytes),
+                c.AfterPaths.Count == 0 ? "—" : Bytes(c.AfterAllocatedBytes),
+                c.PrimaryPath)).ToList();
+
+            long pages = (report.ChangeCount + PageSize - 1) / PageSize;
+            long displayedPage = report.ChangeCount == 0 ? 0 : offset / PageSize + 1;
+            PageIndicatorText.Text = $"Page {displayedPage:N0} of {pages:N0} · " +
+                $"{report.ChangeCount:N0} changes";
+        }
+        finally
+        {
+            _loadingPage = false;
+            UpdateCompareButtonState();
+            UpdatePageButtons();
+        }
+    }
+
+    private async void PreviousPageButton_Click(object sender, RoutedEventArgs e)
+    {
+        try { await LoadChangePageAsync(Math.Max(0, _pageOffset - PageSize)); }
+        catch (Exception ex) { StatusText.Text = "Page load failed: " + ex.Message; }
+    }
+
+    private async void NextPageButton_Click(object sender, RoutedEventArgs e)
+    {
+        try { await LoadChangePageAsync(checked(_pageOffset + PageSize)); }
+        catch (Exception ex) { StatusText.Text = "Page load failed: " + ex.Message; }
     }
 
     private static string Signed(long? value) => value is null
