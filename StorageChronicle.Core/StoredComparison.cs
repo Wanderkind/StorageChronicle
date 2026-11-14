@@ -15,6 +15,8 @@ public sealed record StoredComparison(
     long? UnexplainedDeltaBytes,
     IReadOnlyList<string> Caveats);
 
+public sealed record ComparisonProgress(long ProcessedGroups, long ChangedGroups);
+
 public sealed record ComparisonPage(
     long ComparisonId,
     int Offset,
