@@ -764,6 +764,43 @@ public partial class MainWindow : Window
         }
     }
 
+    private void CopyVssCommandsButton_Click(object sender, RoutedEventArgs e)
+    {
+        string? drive = System.IO.Path.GetPathRoot(RootPathInput.Text.Trim());
+        try
+        {
+            string commands = VssAdminGuidance.AdministratorCommands(drive ?? "");
+            System.Windows.Clipboard.SetText(commands);
+            VssAdminOutputText.Text =
+                "Copied the following read-only commands. Open PowerShell as " +
+                "administrator yourself and paste them there:\n\n" + commands +
+                "\n\nCopying these commands does not elevate StorageChronicle.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or
+            System.Runtime.InteropServices.ExternalException)
+        {
+            VssAdminOutputText.Text =
+                "Unable to copy administrator commands: " + ex.Message;
+        }
+    }
+
+    private static bool? IsVssProcessElevated()
+    {
+        if (!OperatingSystem.IsWindows())
+            return null;
+        try
+        {
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            return new System.Security.Principal.WindowsPrincipal(identity)
+                .IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or
+            UnauthorizedAccessException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
     private async void CheckVssAdminButton_Click(object sender, RoutedEventArgs e)
     {
         if (_vssAdminChecking) return;
@@ -790,9 +827,7 @@ public partial class MainWindow : Window
                     ? "(No standard output.)" : result.Output) +
                 (string.IsNullOrWhiteSpace(result.Error)
                     ? "" : "\nERROR / DIAGNOSTICS:\n" + result.Error) +
-                (result.Succeeded
-                    ? "\n\nThis is raw localized command output. It has not been converted into numerical accounting."
-                    : "\n\nIf access is denied, you may run the SAME read-only command in an administrator PowerShell window. No automatic elevation is performed.");
+                "\n\n" + VssAdminGuidance.Explain(result, IsVssProcessElevated());
         }
         catch (Exception ex)
         {
