@@ -42,9 +42,9 @@ public sealed class ShadowStorageTests
     public void Missing_drive_or_size_and_partial_probes_are_unknown_not_zero()
     {
         var missingDrive = Reading(1, 1, ShadowProbeStatus.Complete,
-            new("source", "diff", null, null, 15, 20, null));
+            new ShadowStorageArea("source", "diff", null, null, 15, 20, null));
         var missingBytes = Reading(2, 2, ShadowProbeStatus.Complete,
-            new("source", "diff", null, "C:", null, null, null));
+            new ShadowStorageArea("source", "diff", null, "C:", null, null, null));
         var partial = Reading(3, 3, ShadowProbeStatus.Partial, Area("C:", 100));
         var unavailable = Reading(4, 4, ShadowProbeStatus.Unavailable);
 
@@ -91,7 +91,7 @@ public sealed class ShadowStorageTests
         long snapshotId = store.Save(baseline);
 
         var reading = Reading(0, 5, ShadowProbeStatus.Complete,
-            new("source-ref", "diff-ref", "C:", "D:", 500, 1000, 2500));
+            new ShadowStorageArea("source-ref", "diff-ref", "C:", "D:", 500, 1000, 2500));
         ShadowStorageMeasurement saved = store.SaveShadowStorageMeasurement(reading);
         ShadowStorageMeasurement restored = store.LoadShadowStorageMeasurement(saved.Id);
 
