@@ -2,7 +2,7 @@
 
 A local, read-only Windows disk-space **snapshot comparator** built with .NET 10 and WPF.
 
-**Status:** Phase 1A built and ran on the user's Windows machine; the Phase 1B streaming changes are **not yet compiled or tested on Windows**. Do not use the results for cleanup decisions without independently verifying the file paths and free-space measurements.
+**Status:** Phase 1A and Phase 1B were reported working on Windows. Phase 1C disk-backed comparisons are **not yet compiled or tested on Windows**. Do not use the results for cleanup decisions without independently verifying the file paths and free-space measurements.
 
 ## What it does now
 
@@ -10,7 +10,7 @@ A local, read-only Windows disk-space **snapshot comparator** built with .NET 10
 - Records file paths, logical size, best-effort NTFS allocated size, file identity, link count, and timestamps.
 - Records scan errors, excluded reparse points, volume capacity, and free space both before and after a scan.
 - Stores snapshot metadata locally in SQLite in a single transaction. Phase 1B streams scanned records directly to SQLite rather than holding the entire file list in RAM; cancellation and database errors roll back the snapshot.
-- Compares two snapshots of the same scan root, grouping hard links by file identity when available.
+- Compares two snapshots of the same scan root, grouping hard links by file identity when available. Phase 1C streams identities from SQLite and saves changes in a comparison cache, rather than loading both entire snapshots into managed memory.
 - Labels new, removed, grown, shrunk, moved, and changed-link file groups.
 - Shows observed volume free-space loss separately from the **provisional residual** it cannot explain.
 - Never deletes or modifies scanned files.
@@ -41,8 +41,8 @@ This is a file-inventory comparator, not yet a full Windows disk accounting engi
 - Allocated size from GetCompressedFileSizeW is not a complete measurement of all physical volume consumption.
 - A hard link outside a scanned scope can complicate attribution to that directory.
 - Windows APIs may require privileges for comprehensive inspection. This app does not elevate or bypass access controls.
-- The comparison engine still loads both saved file inventories into memory; full-volume comparison remains a performance limitation until disk-backed comparison is implemented.
+- Comparison detail is paged (100 changes at a time). SQLite may use temporary disk files for large sorts, and stored comparison results can increase the database size. The original in-memory comparison engine remains for compatibility and unit testing; the WPF app uses the disk-backed path.
 - The SQLite database contains filenames and paths: treat it as **private local data**, never commit it.
 - On platforms other than Windows, the scanner records allocated size as unknown; the desktop app requires Windows.
 
-See [Phase 1A scope and checks](docs/PHASE1A.md) and [Phase 1B streaming validation](docs/PHASE1B.md).
+See [Phase 1A scope and checks](docs/PHASE1A.md), [Phase 1B streaming validation](docs/PHASE1B.md), and [Phase 1C disk-backed comparison](docs/PHASE1C.md).
