@@ -20,6 +20,8 @@ public sealed record StoredFolderSummary(
     long RootKnownNetDeltaBytes,
     long RootUnknownAllocationGroups);
 
+public sealed record FolderBuildProgress(long ProcessedChanges, long TotalChanges);
+
 public sealed record FolderPage(
     long ComparisonId,
     int Offset,
