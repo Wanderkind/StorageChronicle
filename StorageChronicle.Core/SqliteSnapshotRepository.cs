@@ -58,6 +58,7 @@ public sealed partial class SqliteSnapshotRepository
                 ON snapshot_issues(snapshot_id);
             """;
         setup.ExecuteNonQuery();
+        EnsureComparisonSchema(connection);
     }
 
     public long Save(DiskSnapshot snapshot)
@@ -236,6 +237,8 @@ public sealed partial class SqliteSnapshotRepository
         };
         var connection = new SqliteConnection(builder.ToString());
         connection.Open();
+        connection.CreateCollation("SC_ORDINAL_NOCASE",
+            (a, b) => PathComparer.Instance.Compare(a, b));
         using var pragma = connection.CreateCommand();
         pragma.CommandText = "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=30000;";
         pragma.ExecuteNonQuery();
