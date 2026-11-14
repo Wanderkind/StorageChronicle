@@ -11,6 +11,11 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _compareCancellation;
     private StoredComparison? _activeComparison;
     private StoredFolderSummary? _activeFolderSummary;
+    private SnapshotCoverage? _coverage;
+    private int _coverageRequestVersion;
+    private int _coveragePageRequestVersion;
+    private int _coveragePageOffset;
+    private bool _coveragePageBusy;
     private bool _folderGrowthFirst = true;
     private bool _loadingFolderPage;
     private int _folderOffset;
@@ -77,6 +82,8 @@ public partial class MainWindow : Window
         {
             CurrentChoice.ItemsSource = choices;
             CurrentChoice.SelectedIndex = choices.Count > 0 ? 0 : -1;
+            CoverageSnapshotChoice.ItemsSource = choices;
+            CoverageSnapshotChoice.SelectedIndex = choices.Count > 0 ? 0 : -1;
         }
         finally
         {
@@ -487,6 +494,145 @@ public partial class MainWindow : Window
             _folderGrowthFirst ? "Sort: growth" : "Sort: most freed";
         try { await LoadFolderPageAsync(0); }
         catch (Exception ex) { StatusText.Text = "Folder sort failed: " + ex.Message; }
+    }
+
+    private async void CoverageSnapshotChoice_SelectionChanged(
+        object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_repository is null) return;
+        try { await LoadCoverageAsync(); }
+        catch (Exception ex) { CoverageSummaryText.Text = "Coverage query failed: " + ex.Message; }
+    }
+
+    private async void CoverageFilterChoice_SelectionChanged(
+        object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_repository is null || _coverage is null) return;
+        try { await LoadCoveragePageAsync(0); }
+        catch (Exception ex) { CoverageSummaryText.Text = "Notice query failed: " + ex.Message; }
+    }
+
+    private IssueSeverity? SelectedCoverageFilter() =>
+        CoverageFilterChoice.SelectedIndex switch
+        {
+            1 => IssueSeverity.Error,
+            2 => IssueSeverity.Warning,
+            3 => IssueSeverity.Info,
+            _ => null
+        };
+
+    private long FilteredIssueCount(SnapshotCoverage coverage) =>
+        SelectedCoverageFilter() switch
+        {
+            IssueSeverity.Error => coverage.ErrorCount,
+            IssueSeverity.Warning => coverage.WarningCount,
+            IssueSeverity.Info => coverage.InfoCount,
+            _ => coverage.NoticeCount
+        };
+
+    private async Task LoadCoverageAsync()
+    {
+        var store = _repository;
+        int version = ++_coverageRequestVersion;
+        ++_coveragePageRequestVersion; // invalidate in-flight issue-page queries
+        _coverage = null;
+        _coveragePageOffset = 0;
+        _coveragePageBusy = false;
+        CoverageIssuesGrid.ItemsSource = null;
+        CoverageCategoriesText.Text = "";
+        CoveragePageIndicatorText.Text = "No scan notices loaded";
+        UpdateCoveragePageButtons();
+
+        if (store is null || CoverageSnapshotChoice.SelectedItem is not SnapshotChoice choice)
+        {
+            CoverageSummaryText.Text = "Select a saved snapshot to inspect its recorded coverage.";
+            return;
+        }
+
+        CoverageSummaryText.Text = $"Loading coverage for snapshot #{choice.Id} …";
+        SnapshotCoverage coverage = await Task.Run(() => store.LoadScanCoverage(choice.Id));
+        if (version != _coverageRequestVersion ||
+            (CoverageSnapshotChoice.SelectedItem as SnapshotChoice)?.Id != coverage.SnapshotId)
+            return;
+
+        _coverage = coverage;
+        string scope = coverage.IsWholeVolume ? "Whole-volume scan root" : "Directory-scoped scan";
+        CoverageSummaryText.Text =
+            $"Snapshot #{coverage.SnapshotId} · {scope} · " +
+            $"{coverage.FileCount:N0} observed files · " +
+            $"{coverage.ErrorCount:N0} read errors · {coverage.WarningCount:N0} warnings · " +
+            $"{coverage.InfoCount:N0} exclusions/info · " +
+            $"{coverage.MissingAllocationCount:N0} files with unknown allocation · " +
+            $"{coverage.MissingIdentityCount:N0} files with unknown identity.\n" +
+            coverage.CoverageInterpretation;
+
+        var displayedCategories = coverage.Categories.Take(9)
+            .Select(c => $"{c.Severity}/{c.Code}: {c.Count:N0}");
+        CoverageCategoriesText.Text = coverage.Categories.Count == 0
+            ? "No scan notices recorded."
+            : "Recorded issue categories: " +
+              string.Join("  |  ", displayedCategories) +
+              (coverage.Categories.Count > 9
+                  ? $"  |  … {coverage.Categories.Count - 9:N0} more categories" : "");
+
+        await LoadCoveragePageAsync(0);
+    }
+
+    private async Task LoadCoveragePageAsync(int offset)
+    {
+        var store = _repository;
+        var coverage = _coverage;
+        if (store is null || coverage is null) return;
+        int version = ++_coveragePageRequestVersion;
+        IssueSeverity? filter = SelectedCoverageFilter();
+        _coveragePageBusy = true;
+        UpdateCoveragePageButtons();
+        try
+        {
+            ScanIssuePage page = await Task.Run(() =>
+                store.ReadScanIssuePage(coverage.SnapshotId, offset, PageSize, filter));
+            if (version != _coveragePageRequestVersion ||
+                _coverage?.SnapshotId != page.SnapshotId)
+                return;
+
+            _coveragePageOffset = offset;
+            CoverageIssuesGrid.ItemsSource = page.Issues;
+            long count = FilteredIssueCount(coverage);
+            long totalPages = (count + PageSize - 1) / PageSize;
+            long currentPage = count == 0 ? 0 : offset / PageSize + 1;
+            CoveragePageIndicatorText.Text =
+                $"Page {currentPage:N0} of {totalPages:N0} · {count:N0} notices";
+        }
+        finally
+        {
+            if (version == _coveragePageRequestVersion)
+            {
+                _coveragePageBusy = false;
+                UpdateCoveragePageButtons();
+            }
+        }
+    }
+
+    private void UpdateCoveragePageButtons()
+    {
+        var coverage = _coverage;
+        bool ready = coverage is not null && !_coveragePageBusy;
+        long total = coverage is null ? 0 : FilteredIssueCount(coverage);
+        PreviousCoveragePageButton.IsEnabled = ready && _coveragePageOffset > 0;
+        NextCoveragePageButton.IsEnabled = ready &&
+            (long)_coveragePageOffset + PageSize < total;
+    }
+
+    private async void PreviousCoveragePageButton_Click(object sender, RoutedEventArgs e)
+    {
+        try { await LoadCoveragePageAsync(Math.Max(0, _coveragePageOffset - PageSize)); }
+        catch (Exception ex) { CoverageSummaryText.Text = "Page query failed: " + ex.Message; }
+    }
+
+    private async void NextCoveragePageButton_Click(object sender, RoutedEventArgs e)
+    {
+        try { await LoadCoveragePageAsync(checked(_coveragePageOffset + PageSize)); }
+        catch (Exception ex) { CoverageSummaryText.Text = "Page query failed: " + ex.Message; }
     }
 
     private static string Signed(long? value) => value is null
