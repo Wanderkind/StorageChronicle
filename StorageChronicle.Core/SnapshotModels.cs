@@ -37,7 +37,7 @@ public static class PathComparer
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
 
-    public static bool Equals(string a, string b) => Instance.Equals(
+    public static bool SamePath(string a, string b) => Instance.Equals(
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(a)),
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(b)));
 }
