@@ -29,7 +29,7 @@ public sealed record DiskSnapshot(
     IReadOnlyList<ScanIssue> Issues)
 {
     public bool IsComplete => !Issues.Any(x => x.Severity == IssueSeverity.Error);
-    public bool IsWholeVolume => PathComparer.Equals(RootPath, VolumeRoot);
+    public bool IsWholeVolume => PathComparer.SamePath(RootPath, VolumeRoot);
     public int FailureCount => Issues.Count(x => x.Severity == IssueSeverity.Error);
 }
 
