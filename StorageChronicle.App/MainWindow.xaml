@@ -156,16 +156,22 @@
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Orientation="Horizontal"
-                                Margin="0,0,0,8">
-                        <TextBlock Text="Inspect saved snapshot:"
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="140"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Inspect saved snapshot:"
                                    VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="CoverageSnapshotChoice" Width="490"
-                                  MinHeight="28" DisplayMemberPath="Display"
+                        <ComboBox Grid.Column="1" x:Name="CoverageSnapshotChoice"
+                                  MinWidth="125" MinHeight="28"
+                                  DisplayMemberPath="Display"
                                   SelectionChanged="CoverageSnapshotChoice_SelectionChanged"/>
-                        <TextBlock Text="Notice filter:"
+                        <TextBlock Grid.Column="2" Text="Notice filter:"
                                    VerticalAlignment="Center" Margin="16,0,8,0"/>
-                        <ComboBox x:Name="CoverageFilterChoice" MinWidth="125"
+                        <ComboBox Grid.Column="3" x:Name="CoverageFilterChoice"
                                   SelectedIndex="0"
                                   SelectionChanged="CoverageFilterChoice_SelectionChanged">
                             <ComboBoxItem Content="All notices"/>
@@ -173,7 +179,7 @@
                             <ComboBoxItem Content="Warnings"/>
                             <ComboBoxItem Content="Information"/>
                         </ComboBox>
-                    </StackPanel>
+                    </Grid>
                     <TextBlock x:Name="CoverageSummaryText" Grid.Row="1"
                                FontWeight="SemiBold" TextWrapping="Wrap"
                                Text="Select a saved snapshot to inspect its recorded coverage."
