@@ -123,6 +123,32 @@ public partial class MainWindow : Window
             PathComparer.SamePath(baseline.RootPath, current.RootPath);
     }
 
+    private void BrowseButton_Click(object sender, RoutedEventArgs e)
+    {
+        string selectedPath = RootPathInput.Text.Trim();
+        string startingDirectory = System.IO.Directory.Exists(selectedPath)
+            ? selectedPath
+            : System.IO.Path.GetPathRoot(selectedPath) is string driveRoot &&
+              System.IO.Directory.Exists(driveRoot)
+                ? driveRoot
+                : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Select a directory to scan",
+            Multiselect = false,
+            InitialDirectory = startingDirectory
+        };
+
+        // Cancelling the dialog does not modify the current path or create a snapshot.
+        if (dialog.ShowDialog(this) == true &&
+            System.IO.Directory.Exists(dialog.FolderName))
+        {
+            RootPathInput.Text = dialog.FolderName;
+            RootPathInput.CaretIndex = RootPathInput.Text.Length;
+        }
+    }
+
     private async void ScanButton_Click(object sender, RoutedEventArgs e)
     {
         var store = _repository;
@@ -137,6 +163,7 @@ public partial class MainWindow : Window
 
         _scanCancellation = new CancellationTokenSource();
         ScanButton.IsEnabled = false;
+        BrowseButton.IsEnabled = false;
         CompareButton.IsEnabled = false;
         CancelButton.IsEnabled = true;
         StatusText.Text = "Scanning " + root + " (no files will be modified) …";
@@ -180,6 +207,7 @@ public partial class MainWindow : Window
             _scanCancellation.Dispose();
             _scanCancellation = null;
             ScanButton.IsEnabled = true;
+            BrowseButton.IsEnabled = true;
             CancelButton.IsEnabled = false;
             UpdateCompareButtonState();
         }
