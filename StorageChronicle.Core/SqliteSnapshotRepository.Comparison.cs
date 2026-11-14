@@ -134,7 +134,8 @@ public sealed partial class SqliteSnapshotRepository
     /// Repeated comparisons of the same immutable snapshots reuse their cache.
     /// </summary>
     public StoredComparison CompareAndStore(
-        long baselineId, long currentId, CancellationToken cancellationToken = default)
+        long baselineId, long currentId, CancellationToken cancellationToken = default,
+        IProgress<ComparisonProgress>? progress = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (baselineId == currentId)
@@ -199,7 +200,7 @@ public sealed partial class SqliteSnapshotRepository
         var magnitudeParam = insertChange.Parameters.Add("$magnitude", SqliteType.Integer);
         idParam.Value = comparisonId;
 
-        long changeCount = 0, unknownCount = 0, knownDelta = 0;
+        long changeCount = 0, unknownCount = 0, knownDelta = 0, processedGroups = 0;
         void AddChange(FileChange change)
         {
             kindParam.Value = (int)change.Kind;
@@ -257,9 +258,13 @@ public sealed partial class SqliteSnapshotRepository
                 }
                 if (change is not null)
                     AddChange(change);
+                processedGroups = checked(processedGroups + 1);
+                if (processedGroups % 250 == 0)
+                    progress?.Report(new(processedGroups, changeCount));
             }
         }
 
+        progress?.Report(new(processedGroups, changeCount));
         long? volumeDelta = baseline.FreeAfter.HasValue && current.FreeAfter.HasValue
             ? checked(baseline.FreeAfter.Value - current.FreeAfter.Value) : null;
         long? unexplained = volumeDelta.HasValue
