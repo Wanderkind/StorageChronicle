@@ -2,7 +2,7 @@
 
 A local, read-only Windows disk-space **snapshot comparator** built with .NET 10 and WPF.
 
-**Status:** Phase 1A was built and 17 tests were reported passing by the user on Windows; Phase 1B streaming changes are **not yet compiled or tested on Windows**. Do not use the results for cleanup decisions without independently verifying the file paths and free-space measurements.
+**Status:** Phase 1A built and ran on the user's Windows machine; the Phase 1B streaming changes are **not yet compiled or tested on Windows**. Do not use the results for cleanup decisions without independently verifying the file paths and free-space measurements.
 
 ## What it does now
 
