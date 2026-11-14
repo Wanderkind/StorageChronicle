@@ -6,7 +6,7 @@
 2. Preserve root, scan interval, volume capacity/free bytes, exclusions, and read failures for every snapshot.
 3. Never treat an unknown allocated size as zero.
 4. Persist one snapshot in one SQLite transaction; incomplete database writes must not become selectable snapshots.
-5. Compare snapshots of **the same root**, using file identity where available and path fallback otherwise.
+5. Compare snapshots of **the same root**, using file identity where available and path fallback otherwise. The WPF selector lists only earlier baselines of the currently selected root; mismatched roots must not be selectable.
 6. De-duplicate hard-linked paths within a snapshot by identity when calculating allocated-size changes.
 7. Report observed free-space delta, known file allocation delta, and provisional residual separately:
    volume used delta = baseline free-after − current free-after;
@@ -39,14 +39,15 @@ Run on a Windows machine with .NET 10 SDK:
 Then manually verify:
 
 1. Snapshot a test folder with several small files. Observe added, removed, grown, and shrunk changes correctly.
-2. Rename a file without changing its identity. Expect a move with zero allocated delta.
-3. Create a hard link. Expect a link-path change without an additional allocated-size charge.
-4. Create or shrink a sparse/compressed file. Confirm logical size and allocated size differ appropriately.
-5. Add a junction pointing to an unrelated tree. Confirm it is **not** traversed.
-6. Try a restricted directory. Confirm a visible scan failure and an incomplete status, not a false zero.
-7. Compare two full scans of a quiet test volume. Record free-space drift, known allocation delta, and residual.
-8. Cancel a scan. Confirm that no snapshot is saved.
-9. Examine database path and confirm it stays off the scanned volume when possible.
+2. Attempt to select two snapshots from different roots. Expect the UI to refuse the mismatched comparison; after scanning the same root twice, expect a compatible baseline.
+3. Rename a file without changing its identity. Expect a move with zero allocated delta.
+4. Create a hard link. Expect a link-path change without an additional allocated-size charge.
+5. Create or shrink a sparse/compressed file. Confirm logical size and allocated size differ appropriately.
+6. Add a junction pointing to an unrelated tree. Confirm it is **not** traversed.
+7. Try a restricted directory. Confirm a visible scan failure and an incomplete status, not a false zero.
+8. Compare two full scans of a quiet test volume. Record free-space drift, known allocation delta, and residual.
+9. Cancel a scan. Confirm that no snapshot is saved.
+10. Examine database path and confirm it stays off the scanned volume when possible.
 
 ## Delivery policy
 
