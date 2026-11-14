@@ -177,21 +177,20 @@ public partial class MainWindow : Window
                     StatusText.Text = $"Scanning {root}: {p.FileCount:N0} files, " +
                         $"{p.NoticeCount:N0} notices · {p.CurrentDirectory}";
             });
-            DiskSnapshot snapshot = await Task.Run(
-                () => new SnapshotScanner().Capture(root, token, progress));
+            SavedScanResult saved = await Task.Run(
+                () => store.CaptureAndSave(root, token, progress));
             scanRunning = false;
-            StatusText.Text = "Scan finished; saving metadata to SQLite …";
-            long id = await Task.Run(() => store.Save(snapshot));
             RefreshChoices();
-            StatusText.Text = $"Saved snapshot #{id}: {snapshot.Files.Count:N0} files, " +
-                $"{snapshot.FailureCount:N0} read failures, " +
-                $"{snapshot.Issues.Count:N0} total notices. " +
-                $"Elapsed: {(snapshot.FinishedUtc - snapshot.StartedUtc).TotalSeconds:F1}s.";
+            var summary = saved.Summary;
+            StatusText.Text = $"Saved snapshot #{saved.Id}: {summary.FileCount:N0} files, " +
+                $"{summary.ErrorCount:N0} read failures, " +
+                $"{summary.NoticeCount:N0} total notices. " +
+                $"Elapsed: {(summary.FinishedUtc - summary.StartedUtc).TotalSeconds:F1}s.";
             SummaryText.Text = string.Join(Environment.NewLine,
-                snapshot.Issues.Take(100).Select(i =>
+                saved.FirstIssues.Select(i =>
                     $"[{i.Severity}] {i.Code}: {i.Path} — {i.Detail}"));
-            if (snapshot.Issues.Count > 100)
-                SummaryText.AppendText($"\n… and {snapshot.Issues.Count - 100} more notices.");
+            if (summary.NoticeCount > saved.FirstIssues.Count)
+                SummaryText.AppendText($"\n… and {summary.NoticeCount - saved.FirstIssues.Count} more notices.");
         }
         catch (OperationCanceledException)
         {
