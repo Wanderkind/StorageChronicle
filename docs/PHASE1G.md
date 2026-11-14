@@ -40,12 +40,39 @@ When at least two timestamped readings exist, the UI displays the difference in 
 2. Back up the local SQLite snapshot database while the app is closed. If it is open, use SQLite's backup API instead of a raw copy.
 3. Checkout feat/phase1g-vss-observations and run scripts/verify-local.ps1 -RunApp.
 4. The added System.Management package is pinned to 10.0.14; NuGet restore is required.
-5. Expected written test count: 63 (previous 56 plus 7 Phase 1G tests). These tests have NOT been executed by the assistant.
+5. Expected written test count after the Windows client fallback: 66 (previous 56 plus 7 Phase 1G tests and 3 command-validation tests). These tests have NOT been executed by the assistant.
 6. Verify the existing File changes, Folder growth, Reconciliation and Scan coverage tabs still work.
 7. Open Shadow storage. Click Measure VSS now. A reading should be saved even if WMI reports Unavailable due to provider permissions; no elevation prompt is initiated by the app.
 8. Click again at a later time. Verify a numerical delta is shown **only** when both readings report Complete with known storage-drive mappings.
 9. Inspect C: and D: associations. Do not interpret shadow-copy storage for C: placed on D: as free-space use on C:.
 10. Verify existing filesystem snapshots and comparisons remain intact after using the new tab.
+
+## Windows client fallback (2026-11-14)
+
+A Windows 11 test returned `ManagementException: 초기화 실패입니다` (initialization failure) when querying `Win32_ShadowStorage`. The WMI error is recorded as Unavailable, which **does not imply zero shadow-copy storage**. Microsoft's legacy class reference lists no supported Windows client version.
+
+The app now includes a separate **Check via vssadmin** button. It:
+- Resolves the selected scan root to a drive letter.
+- Executes **only** `vssadmin list shadowstorage /on=X:` through `ProcessStartInfo.ArgumentList` with `UseShellExecute=false`.
+- Captures standard output and errors, limits the operation to 20 seconds, and shows the timestamp and exit code.
+- Does not request elevation, modify VSS, or parse localized units into numeric measurements.
+- Does not store this textual diagnostic as a numerical VSS reading or use it to adjust a historical reconciliation residual.
+
+If the command reports access denied, open an elevated PowerShell window *yourself* and run:
+
+    vssadmin list shadowstorage /on=C:
+
+For associations **of shadow copies originating on C:** (rather than stored on C:), use:
+
+    vssadmin list shadowstorage /for=C:
+
+These are both read-only. Do **not** use `vssadmin resize`, `delete` or `create` to debug this feature.
+
+Verify locally:
+1. Run the repo's scripts/verify-local.ps1 -RunApp and confirm the three added VssAdminInspectorTests cases pass.
+2. Open Shadow storage and click **Check via vssadmin** with C: selected. Confirm a command line, timestamp, exit code and raw response appear.
+3. Confirm a WMI-unavailable reading remains unavailable, while the independent command can display results if permissions permit.
+4. Confirm existing snapshots and prior WMI measurements remain unchanged. The CLI output is intentionally not saved in the snapshot database.
 
 ## Known limitations and follow-up
 
