@@ -6,7 +6,8 @@ namespace StorageChronicle.Core;
 /// </summary>
 public sealed class SnapshotScanner
 {
-    public DiskSnapshot Capture(string root, CancellationToken cancellationToken = default)
+    public DiskSnapshot Capture(string root, CancellationToken cancellationToken = default,
+        IProgress<ScanProgress>? progress = null)
     {
         if (string.IsNullOrWhiteSpace(root))
             throw new ArgumentException("Choose an existing directory.", nameof(root));
@@ -26,7 +27,7 @@ public sealed class SnapshotScanner
         var pending = new Stack<string>();
         pending.Push(fullRoot);
 
-        while (pending.TryPop(out string? directory))
+        while (pending.TryPop(out var directory))
         {
             cancellationToken.ThrowIfCancellationRequested();
             // Enumerating via an explicit enumerator also captures failures that
@@ -65,6 +66,8 @@ public sealed class SnapshotScanner
                         records.Add(new(file.FullName, logical, observation.AllocatedBytes,
                             observation.Identity, observation.LinkCount,
                             new DateTimeOffset(file.LastWriteTimeUtc)));
+                        if (records.Count % 250 == 0)
+                            progress?.Report(new(records.Count, issues.Count, directory));
                     }
                     catch (Exception ex) when (IsExpectedFileException(ex))
                     {
@@ -79,6 +82,7 @@ public sealed class SnapshotScanner
             }
         }
 
+        progress?.Report(new(records.Count, issues.Count, fullRoot));
         var (_, freeAfter) = ReadSpace(volumeRoot, issues);
         records.Sort((a, b) => PathComparer.Instance.Compare(a.Path, b.Path));
         return new DiskSnapshot(0, fullRoot, volumeRoot, started,
