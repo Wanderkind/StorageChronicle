@@ -61,6 +61,22 @@ public static class PathComparer
     public static bool SamePath(string a, string b) => Instance.Equals(
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(a)),
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(b)));
+
+    /// <summary>
+    /// Compatible with Phase 1A snapshots that recorded a bare drive letter
+    /// (C:) rather than the canonical volume root (C:\).
+    /// </summary>
+    public static bool SameVolume(string a, string b) => Instance.Equals(
+        CanonicalVolume(a), CanonicalVolume(b));
+
+    private static string CanonicalVolume(string volume)
+    {
+        if (OperatingSystem.IsWindows() && volume.Length == 2 &&
+            char.IsLetter(volume[0]) && volume[1] == ':')
+            return char.ToUpperInvariant(volume[0]) + @":\";
+        return Path.GetPathRoot(Path.GetFullPath(volume)) ??
+            Path.GetFullPath(volume);
+    }
 }
 
 public enum ChangeKind
