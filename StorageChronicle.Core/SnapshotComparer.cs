@@ -90,8 +90,17 @@ public static class SnapshotComparer
             FileRecord? oldRepresentative = oldFiles.MinBy(x => x.Path, PathComparer.Instance);
             FileRecord? newRepresentative = newFiles.MinBy(x => x.Path, PathComparer.Instance);
 
-            long? oldSize = oldRepresentative?.AllocatedBytes;
-            long? newSize = newRepresentative?.AllocatedBytes;
+            // A stable file identity can be observed at multiple hard-link paths.
+            // If metadata differs between those observations, the scan raced with
+            // a modification or returned inconsistent data. Never choose one path
+            // arbitrarily and report a precise allocation delta.
+            bool conflictingReadings =
+                HasConflictingHardLinkReadings(oldFiles) ||
+                HasConflictingHardLinkReadings(newFiles);
+            long? oldSize = HasConflictingHardLinkReadings(oldFiles)
+                ? null : oldRepresentative?.AllocatedBytes;
+            long? newSize = HasConflictingHardLinkReadings(newFiles)
+                ? null : newRepresentative?.AllocatedBytes;
             long oldLogical = oldRepresentative?.LogicalBytes ?? 0;
             long newLogical = newRepresentative?.LogicalBytes ?? 0;
             bool missingSize = (oldRepresentative is not null && oldSize is null) ||
@@ -106,7 +115,8 @@ public static class SnapshotComparer
             bool pathsDiffer = !oldPaths.SequenceEqual(newPaths, PathComparer.Instance);
 
             ChangeKind? kind;
-            if (oldRepresentative is null) kind = ChangeKind.Added;
+            if (conflictingReadings) kind = ChangeKind.AllocationUnknown;
+            else if (oldRepresentative is null) kind = ChangeKind.Added;
             else if (newRepresentative is null) kind = ChangeKind.Deleted;
             else if (difference > 0) kind = ChangeKind.Grew;
             else if (difference < 0) kind = ChangeKind.Shrank;
@@ -120,6 +130,16 @@ public static class SnapshotComparer
             return new FileChange(kind.Value, newPaths.FirstOrDefault() ??
                 oldPaths.FirstOrDefault() ?? "(unknown)", oldPaths, newPaths,
                 oldSize, newSize, difference, oldLogical, newLogical);
+    }
+
+    private static bool HasConflictingHardLinkReadings(
+        IReadOnlyList<FileRecord> records)
+    {
+        if (records.Count < 2) return false;
+        FileRecord first = records[0];
+        return records.Skip(1).Any(x =>
+            x.LogicalBytes != first.LogicalBytes ||
+            x.AllocatedBytes != first.AllocatedBytes);
     }
 
     private static bool Drifted(DiskSnapshot s) =>
