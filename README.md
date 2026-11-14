@@ -2,7 +2,7 @@
 
 A local, read-only Windows disk-space **snapshot comparator** built with .NET 10 and WPF.
 
-**Status:** Phase 1C passed 34 automated Windows tests on 2026-11-14, and the user reports Phase 1D working on Windows. Phase 1E scan coverage diagnostics are **not yet compiled or tested on Windows**. Do not rely on results for deleting files without independently verifying paths and accounting limitations.
+**Status:** The user confirmed that Phase 1E's Scan coverage view displays correctly on Windows. Phase 1F reconciliation is **not yet compiled or tested on Windows**. Do not rely on diagnostic residuals for deleting files; independently verify source paths and accounting limitations.
 
 ## What it does now
 
@@ -14,7 +14,8 @@ A local, read-only Windows disk-space **snapshot comparator** built with .NET 10
 - Labels new, removed, grown, shrunk, moved, and changed-link file groups.
 - Phase 1D adds a **Folder growth** tab: cumulative known allocation changes across nested directories, including growth/reduction columns and unknown-allocation counts. It pages and sorts folder summaries from SQLite.
 - Phase 1E adds **Scan coverage**, allowing inspection of saved scan read failures, missing allocation and identity metadata, exclusion categories, and the complete paginated issue list—without rescanning.
-- Shows observed volume free-space loss separately from the **provisional residual** it cannot explain.
+- Phase 1F adds a **Reconciliation** tab: observed free-space loss, constant-capacity used-space change, known file allocation delta, unassigned residual, scan-time free-space drift, and explicit measurement limitations.
+- Separates observed free-space loss from the **provisional residual** it cannot explain; missing or changed volume capacity disables used-space reconciliation rather than substituting zero.
 - Never deletes or modifies scanned files.
 
 ## Start on Windows
@@ -48,4 +49,4 @@ This is a file-inventory comparator, not yet a full Windows disk accounting engi
 - The SQLite database contains filenames and paths: treat it as **private local data**, never commit it.
 - On platforms other than Windows, the scanner records allocated size as unknown; the desktop app requires Windows.
 
-See [Phase 1A scope and checks](docs/PHASE1A.md), [Phase 1B streaming validation](docs/PHASE1B.md),  [Phase 1C disk-backed comparison](docs/PHASE1C.md), and [Phase 1D folder growth summaries](docs/PHASE1D.md). See also [Phase 1E scan coverage](docs/PHASE1E.md).
+See [Phase 1A scope and checks](docs/PHASE1A.md), [Phase 1B streaming validation](docs/PHASE1B.md),  [Phase 1C disk-backed comparison](docs/PHASE1C.md), and [Phase 1D folder growth summaries](docs/PHASE1D.md). See also [Phase 1E scan coverage](docs/PHASE1E.md) and [Phase 1F reconciliation](docs/PHASE1F.md).
