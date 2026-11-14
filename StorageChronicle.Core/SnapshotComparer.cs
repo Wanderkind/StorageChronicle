@@ -78,6 +78,14 @@ public static class SnapshotComparer
             ? checked(usedDelta.Value - knownDelta) : null;
 
         var caveats = new List<string>();
+        if (baseline.StartedUtc > current.StartedUtc)
+            caveats.Add("The selected baseline is newer than the current snapshot; the comparison direction is reversed.");
+        if (baseline.VolumeCapacityBytes.HasValue && current.VolumeCapacityBytes.HasValue &&
+            baseline.VolumeCapacityBytes.Value != current.VolumeCapacityBytes.Value)
+            caveats.Add("The volume capacity changed between snapshots; free-space changes require additional interpretation.");
+        if (baseline.Files.Any(x => x.FileIdentity is null) ||
+            current.Files.Any(x => x.FileIdentity is null))
+            caveats.Add("Some file identities were unavailable, so a rename or replacement may appear as an addition and deletion.");
         if (!baseline.IsWholeVolume || !current.IsWholeVolume)
             caveats.Add("Directory-scoped files cannot explain changes elsewhere on the volume.");
         if (!baseline.IsComplete || !current.IsComplete)
