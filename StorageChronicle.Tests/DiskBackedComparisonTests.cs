@@ -247,7 +247,14 @@ public sealed class DiskBackedComparisonTests
             File(workspace.Root, "new.bin", 100, 128, "NEW")));
 
         long oldCacheId;
-        using (var connection = new SqliteConnection($"Data Source={workspace.Database}"))
+        // Avoid the provider's default connection pool retaining a Windows file
+        // handle after Dispose(), which would block TempWorkspace cleanup.
+        var connectionString = new SqliteConnectionStringBuilder
+        {
+            DataSource = workspace.Database,
+            Pooling = false
+        }.ToString();
+        using (var connection = new SqliteConnection(connectionString))
         {
             connection.Open();
             using var command = connection.CreateCommand();
