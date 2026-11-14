@@ -19,9 +19,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Cannot read Git HEAD.' }
 if ($commit -notmatch '^[0-9a-fA-F]{40}$') { throw 'Unexpected Git commit format.' }
 
 $evidencePath = (Resolve-Path -LiteralPath $VerificationFile -ErrorAction Stop).Path
-$qaRoot = ([IO.Path]::GetFullPath((Join-Path $repo 'artifacts\qa'))).
-    TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) +
-    [IO.Path]::DirectorySeparatorChar
+$qaRoot = [IO.Path]::GetFullPath((Join-Path $repo 'artifacts\qa'))
+$qaRoot = $qaRoot.TrimEnd([char[]]@('\', '/')) + '\'
 if (-not $evidencePath.StartsWith($qaRoot, [StringComparison]::OrdinalIgnoreCase)) {
     throw "Verification evidence must be under $qaRoot"
 }
