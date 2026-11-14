@@ -240,7 +240,8 @@ public sealed partial class SqliteSnapshotRepository
         connection.CreateCollation("SC_ORDINAL_NOCASE",
             (a, b) => PathComparer.Instance.Compare(a, b));
         using var pragma = connection.CreateCommand();
-        pragma.CommandText = "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=30000;";
+        pragma.CommandText = "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=30000; " +
+                             "PRAGMA temp_store=FILE; PRAGMA cache_size=-8192;";
         pragma.ExecuteNonQuery();
         return connection;
     }
