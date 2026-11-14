@@ -66,6 +66,31 @@ public sealed class FolderSummaryTests
     }
 
     [Fact]
+    public void Ancestor_totals_overlap_and_root_includes_direct_files()
+    {
+        using var w = new Workspace();
+        var store = new SqliteSnapshotRepository(w.Database);
+        long before = store.Save(Snap(w.Root));
+        long after = store.Save(Snap(w.Root,
+            File(w.Root, "direct.txt", 30, 32, "DIRECT"),
+            File(w.Root, Path.Combine("Packages", "NuGet", "item.bin"),
+                1000, 1024, "NESTED")));
+        var comparison = store.CompareAndStore(before, after);
+        var summary = store.BuildFolderSummary(comparison.Id);
+        var page = store.ReadFolderPage(comparison.Id, 0);
+
+        Assert.Equal(1056L, comparison.KnownAllocatedDeltaBytes);
+        Assert.Equal(1056L, summary.RootKnownNetDeltaBytes);
+        Assert.Equal(2, summary.FolderCount);
+        Assert.Equal(1024L,
+            Find(page, Path.Combine(w.Root, "Packages")).KnownNetDeltaBytes);
+        Assert.Equal(1024L,
+            Find(page, Path.Combine(w.Root, "Packages", "NuGet")).KnownNetDeltaBytes);
+        Assert.Equal(2048L, page.Folders.Sum(x => x.KnownNetDeltaBytes));
+        // The rows overlap: their sum must never be presented as volume usage.
+    }
+
+    [Fact]
     public void Unknown_allocation_is_never_treated_as_known_growth()
     {
         using var w = new Workspace();
