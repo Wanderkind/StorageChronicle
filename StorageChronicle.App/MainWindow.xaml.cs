@@ -67,7 +67,8 @@ public partial class MainWindow : Window
 
     private async void ScanButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_repository is null) return;
+        var store = _repository;
+        if (store is null) return;
         string root = RootPathInput.Text.Trim();
         if (!System.IO.Directory.Exists(root))
         {
@@ -84,10 +85,13 @@ public partial class MainWindow : Window
         try
         {
             var token = _scanCancellation.Token;
+            var progress = new Progress<ScanProgress>(p =>
+                StatusText.Text = $"Scanning {root}: {p.FileCount:N0} files, " +
+                    $"{p.NoticeCount:N0} notices · {p.CurrentDirectory}");
             DiskSnapshot snapshot = await Task.Run(
-                () => new SnapshotScanner().Capture(root, token));
+                () => new SnapshotScanner().Capture(root, token, progress));
             StatusText.Text = "Scan finished; saving metadata to SQLite …";
-            long id = await Task.Run(() => _repository.Save(snapshot));
+            long id = await Task.Run(() => store.Save(snapshot));
             RefreshChoices();
             StatusText.Text = $"Saved snapshot #{id}: {snapshot.Files.Count:N0} files, " +
                 $"{snapshot.FailureCount:N0} read failures, " +
@@ -122,7 +126,8 @@ public partial class MainWindow : Window
 
     private async void CompareButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_repository is null ||
+        var store = _repository;
+        if (store is null ||
             BaselineChoice.SelectedItem is not SnapshotChoice baseline ||
             CurrentChoice.SelectedItem is not SnapshotChoice current)
         {
@@ -139,8 +144,8 @@ public partial class MainWindow : Window
         try
         {
             ComparisonReport report = await Task.Run(() =>
-                SnapshotComparer.Compare(_repository.Load(baseline.Id),
-                                         _repository.Load(current.Id)));
+                SnapshotComparer.Compare(store.Load(baseline.Id),
+                                         store.Load(current.Id)));
             ChangesGrid.ItemsSource = report.Changes.Select(c => new ChangeRow(
                 c.Kind.ToString(), Signed(c.AllocatedDeltaBytes),
                 c.BeforePaths.Count == 0 ? "—" : Bytes(c.BeforeAllocatedBytes),
