@@ -1,12 +1,90 @@
-﻿<Window x:Class="StorageChronicle.App.MainWindow"
+<Window x:Class="StorageChronicle.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:StorageChronicle.App"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="StorageChronicle — Phase 1A" Height="760" Width="1120"
+        MinWidth="850" MinHeight="600" WindowStartupLocation="CenterScreen">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="175" />
+        </Grid.RowDefinitions>
 
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock FontSize="23" FontWeight="SemiBold" Text="StorageChronicle"/>
+            <TextBlock Foreground="DimGray"
+                       Text="Read-only snapshot comparison · File allocation is not the same as total volume usage."/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,10">
+            <TextBlock Text="Scan directory or volume root" FontWeight="SemiBold" Margin="0,0,0,5"/>
+            <DockPanel LastChildFill="True">
+                <Button x:Name="ScanButton" DockPanel.Dock="Right" Content="Take snapshot"
+                        MinWidth="125" Padding="12,7" Margin="8,0,0,0"
+                        Click="ScanButton_Click"/>
+                <Button x:Name="CancelButton" DockPanel.Dock="Right" Content="Cancel scan"
+                        MinWidth="105" Padding="12,7" Margin="8,0,0,0"
+                        IsEnabled="False" Click="CancelButton_Click"/>
+                <TextBox x:Name="RootPathInput" VerticalContentAlignment="Center"
+                         FontFamily="Consolas" Padding="8,6" />
+            </DockPanel>
+            <TextBlock x:Name="DatabaseLocationText" FontSize="11" Foreground="DimGray"
+                       TextWrapping="Wrap" Margin="0,6,0,0"/>
+        </StackPanel>
+
+        <Grid Grid.Row="2" Margin="0,3,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="18" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Text="Baseline snapshot" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                <ComboBox x:Name="BaselineChoice" MinHeight="31"
+                          DisplayMemberPath="Display"/>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Current snapshot" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                <ComboBox x:Name="CurrentChoice" MinHeight="31"
+                          DisplayMemberPath="Display"/>
+            </StackPanel>
+            <Button x:Name="CompareButton" Grid.Column="3" Content="Compare"
+                    MinWidth="110" Padding="12,7" Margin="12,18,0,0"
+                    Click="CompareButton_Click"/>
+        </Grid>
+
+        <DataGrid x:Name="ChangesGrid" Grid.Row="3"
+                  AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                  SelectionMode="Extended" EnableRowVirtualization="True"
+                  AlternatingRowBackground="#F5F7F9" Margin="0,0,0,12">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Change" Binding="{Binding Kind}"
+                                    Width="125"/>
+                <DataGridTextColumn Header="Allocated delta" Binding="{Binding Delta}"
+                                    Width="145"/>
+                <DataGridTextColumn Header="Before" Binding="{Binding Before}"
+                                    Width="125"/>
+                <DataGridTextColumn Header="After" Binding="{Binding After}"
+                                    Width="125"/>
+                <DataGridTextColumn Header="Path" Binding="{Binding Path}"
+                                    Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Grid Grid.Row="4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock x:Name="StatusText" Grid.Row="0" Text="Ready." FontWeight="SemiBold"
+                       Margin="0,0,0,8" TextWrapping="Wrap"/>
+            <TextBox x:Name="SummaryText" Grid.Row="1" IsReadOnly="True"
+                     VerticalScrollBarVisibility="Auto"
+                     TextWrapping="Wrap" Padding="9"
+                     FontFamily="Consolas" FontSize="12"/>
+        </Grid>
     </Grid>
 </Window>
