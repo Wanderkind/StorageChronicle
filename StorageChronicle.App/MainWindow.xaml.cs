@@ -312,9 +312,10 @@ public partial class MainWindow : Window
             StatusText.Text = $"Comparison #{baseline.Id} → #{current.Id}: " +
                 $"{report.ChangeCount:N0} changed file groups";
             SummaryText.Text =
-                $"Observed volume used-space delta: {Signed(report.VolumeUsedDeltaBytes)}\n" +
-                $"Known file allocation delta:     {Signed(report.KnownAllocatedDeltaBytes)}\n" +
-                $"Provisional unexplained delta:    {Signed(report.UnexplainedDeltaBytes)}\n" +
+                $"Observed free-space loss:         {Signed(evidence.FreeSpaceLossBytes)}\n" +
+                $"Volume used-space delta:          {Signed(evidence.VolumeUsedChangeBytes)}\n" +
+                $"Known file allocation delta:      {Signed(report.KnownAllocatedDeltaBytes)}\n" +
+                $"Unassigned residual:              {Signed(evidence.UnexplainedResidualBytes)}\n" +
                 $"Changes with unknown allocation:  {report.UnknownAllocationChanges:N0}\n" +
                 $"Folder totals (known net):       {Signed(folders.RootKnownNetDeltaBytes)}\n" +
                 $"Directories with changes:       {folders.FolderCount:N0}\n\n" +
@@ -655,8 +656,8 @@ public partial class MainWindow : Window
             $"Current:  #{r.Current.SnapshotId} · {r.Current.StartedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}",
             $"Scope:    {r.Current.RootPath}",
             "",
-            $"Baseline free (end):              {Signed(r.Baseline.FreeBytesAfter)}",
-            $"Current free (end):               {Signed(r.Current.FreeBytesAfter)}",
+            $"Baseline free (end):              {Bytes(r.Baseline.FreeBytesAfter)}",
+            $"Current free (end):               {Bytes(r.Current.FreeBytesAfter)}",
             $"Observed free-space loss:         {Signed(r.FreeSpaceLossBytes)}",
             $"Capacity change (current - old): {Signed(r.CapacityChangeBytes)}",
             $"Volume used-space change:        {Signed(r.VolumeUsedChangeBytes)}",
