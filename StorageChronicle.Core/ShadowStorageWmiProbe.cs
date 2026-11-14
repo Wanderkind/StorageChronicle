@@ -49,7 +49,7 @@ public sealed class ShadowStorageWmiProbe
         }
         catch (Exception ex) when (ex is ManagementException or
             UnauthorizedAccessException or COMException or
-            System.Security.SecurityException or InvalidOperationException)
+            System.Security.SecurityException or InvalidOperationException or ArgumentException or NotSupportedException)
         {
             return new(0, observed, ShadowProbeStatus.Unavailable,
                 $"WMI shadow-storage query failed ({ex.GetType().Name}): {ex.Message}",
@@ -57,6 +57,7 @@ public sealed class ShadowStorageWmiProbe
         }
     }
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     private static string? ResolveDrive(string reference, List<string> diagnostics)
     {
         if (string.IsNullOrWhiteSpace(reference))
