@@ -82,14 +82,19 @@ public partial class MainWindow : Window
         CompareButton.IsEnabled = false;
         CancelButton.IsEnabled = true;
         StatusText.Text = "Scanning " + root + " (no files will be modified) …";
+        bool scanRunning = true;
         try
         {
             var token = _scanCancellation.Token;
             var progress = new Progress<ScanProgress>(p =>
-                StatusText.Text = $"Scanning {root}: {p.FileCount:N0} files, " +
-                    $"{p.NoticeCount:N0} notices · {p.CurrentDirectory}");
+            {
+                if (scanRunning)
+                    StatusText.Text = $"Scanning {root}: {p.FileCount:N0} files, " +
+                        $"{p.NoticeCount:N0} notices · {p.CurrentDirectory}";
+            });
             DiskSnapshot snapshot = await Task.Run(
                 () => new SnapshotScanner().Capture(root, token, progress));
+            scanRunning = false;
             StatusText.Text = "Scan finished; saving metadata to SQLite …";
             long id = await Task.Run(() => store.Save(snapshot));
             RefreshChoices();
@@ -113,6 +118,7 @@ public partial class MainWindow : Window
         }
         finally
         {
+            scanRunning = false;
             _scanCancellation.Dispose();
             _scanCancellation = null;
             ScanButton.IsEnabled = true;
