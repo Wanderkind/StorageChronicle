@@ -13,6 +13,18 @@ public class SnapshotComparerTests
         new(id, Root, Path.GetPathRoot(Root)!, DateTimeOffset.UnixEpoch,
             DateTimeOffset.UnixEpoch.AddSeconds(1), 100_000, free, free, files, []);
 
+
+    [Fact]
+    public void Whole_volume_detection_uses_the_normalized_root()
+    {
+        string volumeRoot = Path.GetPathRoot(Root)!;
+        var whole = Snap(1, 5000) with { RootPath = volumeRoot, VolumeRoot = volumeRoot };
+        var scoped = Snap(2, 5000);
+
+        Assert.True(whole.IsWholeVolume);
+        Assert.False(scoped.IsWholeVolume);
+    }
+
     [Fact]
     public void Detects_add_delete_growth_and_shrink()
     {
