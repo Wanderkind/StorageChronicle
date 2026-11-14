@@ -109,6 +109,13 @@ Manual acceptance:
 - For large C: scans, check actual error counts and temp-disk usage; do not infer
   precision merely from a low residual.
 
+## Windows release-gate test failure and correction (2026-11-14)
+
+- The exact candidate `41fbba7370340a145b2fff0bb42da5789473c1b1` restored and built successfully with warnings treated as errors; the xUnit suite ran 74 tests, with 73 passed, 1 failed, and 0 skipped.
+- The sole failure was `DiskBackedComparisonTests.Versioned_comparison_ignores_an_older_algorithm_cache`: the temporary fixture failed to delete `comparisons.db` in `Workspace.Dispose()` on Windows because a direct `Microsoft.Data.Sqlite.SqliteConnection` used the provider's default connection pooling, unlike repository connections configured with `Pooling=false`.
+- Fix: set `Pooling = false` on the test's directly constructed SQLite connection. The existing test's Windows cleanup remains the regression check.
+- No production database, scanner, comparison algorithm, or snapshot schema was changed for this correction.
+- **The updated review head is NOT yet verified.** Repeat the entire release script on the new exact commit and only accept a fresh 74/74 result with zero warnings, failures, and skips. Do not reuse the failed TRX evidence for packaging.
 ## Additional pre-release hardening
 
 - The WPF comparison screen now uses separate progress flags for file comparison and folder summarization; late callbacks from one phase cannot suppress the other phase's progress.
