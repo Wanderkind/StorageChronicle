@@ -94,13 +94,11 @@ public static class SnapshotComparer
             // If metadata differs between those observations, the scan raced with
             // a modification or returned inconsistent data. Never choose one path
             // arbitrarily and report a precise allocation delta.
-            bool conflictingReadings =
-                HasConflictingHardLinkReadings(oldFiles) ||
-                HasConflictingHardLinkReadings(newFiles);
-            long? oldSize = HasConflictingHardLinkReadings(oldFiles)
-                ? null : oldRepresentative?.AllocatedBytes;
-            long? newSize = HasConflictingHardLinkReadings(newFiles)
-                ? null : newRepresentative?.AllocatedBytes;
+            bool conflictingBefore = HasConflictingHardLinkReadings(oldFiles);
+            bool conflictingAfter = HasConflictingHardLinkReadings(newFiles);
+            bool conflictingReadings = conflictingBefore || conflictingAfter;
+            long? oldSize = conflictingBefore ? null : oldRepresentative?.AllocatedBytes;
+            long? newSize = conflictingAfter ? null : newRepresentative?.AllocatedBytes;
             long oldLogical = oldRepresentative?.LogicalBytes ?? 0;
             long newLogical = newRepresentative?.LogicalBytes ?? 0;
             bool missingSize = (oldRepresentative is not null && oldSize is null) ||
