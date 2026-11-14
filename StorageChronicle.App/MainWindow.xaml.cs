@@ -284,6 +284,7 @@ public partial class MainWindow : Window
         StatusText.Text = "Comparing saved snapshots on disk …";
         ClearComparisonView();
         bool showComparisonProgress = true;
+        bool showFolderProgress = false;
         try
         {
             var token = _compareCancellation.Token;
@@ -299,15 +300,16 @@ public partial class MainWindow : Window
             _activeComparison = report;
             await LoadChangePageAsync(0);
 
+            showFolderProgress = true;
             var folderProgress = new Progress<FolderBuildProgress>(p =>
             {
-                if (showComparisonProgress)
+                if (showFolderProgress)
                     StatusText.Text = $"Summarizing folders: {p.ProcessedChanges:N0} " +
                         $"of {p.TotalChanges:N0} file changes …";
             });
             StoredFolderSummary folders = await Task.Run(() =>
                 store.BuildFolderSummary(report.Id, token, folderProgress));
-            showComparisonProgress = false;
+            showFolderProgress = false;
             _activeFolderSummary = folders;
             FolderTotalsText.Text =
                 $"{folders.RootPath} · Net known allocation change: " +
@@ -353,6 +355,7 @@ public partial class MainWindow : Window
         finally
         {
             showComparisonProgress = false;
+            showFolderProgress = false;
             _compareCancellation.Dispose();
             _compareCancellation = null;
             CancelCompareButton.IsEnabled = false;
