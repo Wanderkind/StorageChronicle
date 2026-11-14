@@ -254,11 +254,19 @@ public partial class MainWindow : Window
         NextPageButton.IsEnabled = false;
         StatusText.Text = "Comparing saved snapshots on disk …";
         ClearComparisonView();
+        bool showComparisonProgress = true;
         try
         {
             var token = _compareCancellation.Token;
+            var progress = new Progress<ComparisonProgress>(p =>
+            {
+                if (showComparisonProgress)
+                    StatusText.Text = $"Comparing: {p.ProcessedGroups:N0} file groups reviewed, " +
+                        $"{p.ChangedGroups:N0} changes …";
+            });
             StoredComparison report = await Task.Run(
-                () => store.CompareAndStore(baseline.Id, current.Id, token));
+                () => store.CompareAndStore(baseline.Id, current.Id, token, progress));
+            showComparisonProgress = false;
             _activeComparison = report;
             await LoadChangePageAsync(0);
             StatusText.Text = $"Comparison #{baseline.Id} → #{current.Id}: " +
@@ -282,6 +290,7 @@ public partial class MainWindow : Window
         }
         finally
         {
+            showComparisonProgress = false;
             _compareCancellation.Dispose();
             _compareCancellation = null;
             CancelCompareButton.IsEnabled = false;
