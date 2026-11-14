@@ -8,7 +8,7 @@ public static class SnapshotComparer
     {
         if (!PathComparer.SamePath(baseline.RootPath, current.RootPath))
             throw new ArgumentException("Snapshots must cover the same scan root.");
-        if (!PathComparer.SamePath(baseline.VolumeRoot, current.VolumeRoot))
+        if (!PathComparer.SameVolume(baseline.VolumeRoot, current.VolumeRoot))
             throw new ArgumentException("Snapshots are from different volumes.");
 
         var before = Index(baseline.Files);
