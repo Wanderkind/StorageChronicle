@@ -87,8 +87,8 @@ public static class SnapshotComparer
         IReadOnlyList<FileRecord> oldFiles,
         IReadOnlyList<FileRecord> newFiles)
     {
-            FileRecord? oldRepresentative = oldFiles.FirstOrDefault();
-            FileRecord? newRepresentative = newFiles.FirstOrDefault();
+            FileRecord? oldRepresentative = oldFiles.MinBy(x => x.Path, PathComparer.Instance);
+            FileRecord? newRepresentative = newFiles.MinBy(x => x.Path, PathComparer.Instance);
 
             long? oldSize = oldRepresentative?.AllocatedBytes;
             long? newSize = newRepresentative?.AllocatedBytes;
