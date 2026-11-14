@@ -25,42 +25,11 @@ public static class SnapshotComparer
             after.TryGetValue(key, out var newFiles);
             oldFiles ??= [];
             newFiles ??= [];
-            FileRecord? oldRepresentative = oldFiles.FirstOrDefault();
-            FileRecord? newRepresentative = newFiles.FirstOrDefault();
-
-            long? oldSize = oldRepresentative?.AllocatedBytes;
-            long? newSize = newRepresentative?.AllocatedBytes;
-            long oldLogical = oldRepresentative?.LogicalBytes ?? 0;
-            long newLogical = newRepresentative?.LogicalBytes ?? 0;
-            bool missingSize = (oldRepresentative is not null && oldSize is null) ||
-                               (newRepresentative is not null && newSize is null);
-            long? difference = missingSize ? null :
-                checked((newSize ?? 0) - (oldSize ?? 0));
-
-            var oldPaths = oldFiles.Select(x => x.Path)
-                .OrderBy(x => x, PathComparer.Instance).ToArray();
-            var newPaths = newFiles.Select(x => x.Path)
-                .OrderBy(x => x, PathComparer.Instance).ToArray();
-            bool pathsDiffer = !oldPaths.SequenceEqual(newPaths, PathComparer.Instance);
-
-            ChangeKind? kind;
-            if (oldRepresentative is null) kind = ChangeKind.Added;
-            else if (newRepresentative is null) kind = ChangeKind.Deleted;
-            else if (difference > 0) kind = ChangeKind.Grew;
-            else if (difference < 0) kind = ChangeKind.Shrank;
-            else if (oldLogical != newLogical) kind = ChangeKind.LogicalSizeChanged;
-            else if (pathsDiffer)
-                kind = oldPaths.Length == 1 && newPaths.Length == 1
-                    ? ChangeKind.Moved : ChangeKind.LinksChanged;
-            else kind = null;
-
-            if (kind is null) continue;
-            if (difference is null) unknownCount++;
-            else knownDelta = checked(knownDelta + difference.Value);
-
-            changes.Add(new(kind.Value, newPaths.FirstOrDefault() ??
-                oldPaths.FirstOrDefault() ?? "(unknown)", oldPaths, newPaths,
-                oldSize, newSize, difference, oldLogical, newLogical));
+            FileChange? change = CompareGroups(oldFiles, newFiles);
+            if (change is null) continue;
+            if (change.AllocatedDeltaBytes is null) unknownCount++;
+            else knownDelta = checked(knownDelta + change.AllocatedDeltaBytes.Value);
+            changes.Add(change);
         }
 
         changes.Sort((a, b) =>
@@ -108,6 +77,49 @@ public static class SnapshotComparer
         return new ComparisonReport(baseline.Id, current.Id, changes, knownDelta,
             unknownCount, usedDelta, unexplained,
             true, caveats);
+    }
+
+    /// <summary>
+    /// Shared single-file-identity group comparison used by both in-memory
+    /// and database-streaming comparison; avoids diverging classification.
+    /// </summary>
+    internal static FileChange? CompareGroups(
+        IReadOnlyList<FileRecord> oldFiles,
+        IReadOnlyList<FileRecord> newFiles)
+    {
+            FileRecord? oldRepresentative = oldFiles.FirstOrDefault();
+            FileRecord? newRepresentative = newFiles.FirstOrDefault();
+
+            long? oldSize = oldRepresentative?.AllocatedBytes;
+            long? newSize = newRepresentative?.AllocatedBytes;
+            long oldLogical = oldRepresentative?.LogicalBytes ?? 0;
+            long newLogical = newRepresentative?.LogicalBytes ?? 0;
+            bool missingSize = (oldRepresentative is not null && oldSize is null) ||
+                               (newRepresentative is not null && newSize is null);
+            long? difference = missingSize ? null :
+                checked((newSize ?? 0) - (oldSize ?? 0));
+
+            var oldPaths = oldFiles.Select(x => x.Path)
+                .OrderBy(x => x, PathComparer.Instance).ToArray();
+            var newPaths = newFiles.Select(x => x.Path)
+                .OrderBy(x => x, PathComparer.Instance).ToArray();
+            bool pathsDiffer = !oldPaths.SequenceEqual(newPaths, PathComparer.Instance);
+
+            ChangeKind? kind;
+            if (oldRepresentative is null) kind = ChangeKind.Added;
+            else if (newRepresentative is null) kind = ChangeKind.Deleted;
+            else if (difference > 0) kind = ChangeKind.Grew;
+            else if (difference < 0) kind = ChangeKind.Shrank;
+            else if (oldLogical != newLogical) kind = ChangeKind.LogicalSizeChanged;
+            else if (pathsDiffer)
+                kind = oldPaths.Length == 1 && newPaths.Length == 1
+                    ? ChangeKind.Moved : ChangeKind.LinksChanged;
+            else kind = null;
+
+            if (kind is null) return null;
+            return new FileChange(kind.Value, newPaths.FirstOrDefault() ??
+                oldPaths.FirstOrDefault() ?? "(unknown)", oldPaths, newPaths,
+                oldSize, newSize, difference, oldLogical, newLogical);
     }
 
     private static bool Drifted(DiskSnapshot s) =>
