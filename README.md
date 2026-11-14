@@ -2,7 +2,7 @@
 
 A local, read-only Windows disk-space **snapshot comparator** built with .NET 10 and WPF.
 
-**Status:** The user confirmed that Phase 1E's Scan coverage view displays correctly on Windows. Phase 1F reconciliation is **not yet compiled or tested on Windows**. Do not rely on diagnostic residuals for deleting files; independently verify source paths and accounting limitations.
+**Status:** The user confirmed that Phase 1F's Reconciliation view displays correctly on Windows. Phase 1G read-only WMI shadow-storage observations are **not yet compiled or tested on Windows**. Do not delete files based on unassigned residuals; verify source paths, timestamps and measurement limitations.
 
 ## What it does now
 
@@ -16,6 +16,7 @@ A local, read-only Windows disk-space **snapshot comparator** built with .NET 10
 - Phase 1E adds **Scan coverage**, allowing inspection of saved scan read failures, missing allocation and identity metadata, exclusion categories, and the complete paginated issue list—without rescanning.
 - Phase 1F adds a **Reconciliation** tab: observed free-space loss, constant-capacity used-space change, known file allocation delta, unassigned residual, scan-time free-space drift, and explicit measurement limitations.
 - Separates observed free-space loss from the **provisional residual** it cannot explain; missing or changed volume capacity disables used-space reconciliation rather than substituting zero.
+- Phase 1G adds an opt-in **Shadow storage** tab with timestamped, read-only WMI measurements. It does not retroactively attribute VSS usage to earlier scans or subtract it from residuals.
 - Never deletes or modifies scanned files.
 
 ## Start on Windows
@@ -49,4 +50,4 @@ This is a file-inventory comparator, not yet a full Windows disk accounting engi
 - The SQLite database contains filenames and paths: treat it as **private local data**, never commit it.
 - On platforms other than Windows, the scanner records allocated size as unknown; the desktop app requires Windows.
 
-See [Phase 1A scope and checks](docs/PHASE1A.md), [Phase 1B streaming validation](docs/PHASE1B.md),  [Phase 1C disk-backed comparison](docs/PHASE1C.md), and [Phase 1D folder growth summaries](docs/PHASE1D.md). See also [Phase 1E scan coverage](docs/PHASE1E.md) and [Phase 1F reconciliation](docs/PHASE1F.md).
+See [Phase 1A scope and checks](docs/PHASE1A.md), [Phase 1B streaming validation](docs/PHASE1B.md),  [Phase 1C disk-backed comparison](docs/PHASE1C.md), and [Phase 1D folder growth summaries](docs/PHASE1D.md). See also [Phase 1E scan coverage](docs/PHASE1E.md) [Phase 1F reconciliation](docs/PHASE1F.md), and [Phase 1G VSS observations](docs/PHASE1G.md).
