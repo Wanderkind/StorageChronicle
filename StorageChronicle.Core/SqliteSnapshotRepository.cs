@@ -12,7 +12,7 @@ public sealed record SnapshotSummary(
 /// a crash never leaves a partially persisted snapshot visible for comparison.
 /// This database stores paths and metadata, not file contents.
 /// </summary>
-public sealed class SqliteSnapshotRepository
+public sealed partial class SqliteSnapshotRepository
 {
     public string DatabasePath { get; }
 
