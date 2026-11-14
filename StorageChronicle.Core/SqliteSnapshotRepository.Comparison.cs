@@ -6,7 +6,7 @@ namespace StorageChronicle.Core;
 
 public sealed partial class SqliteSnapshotRepository
 {
-    private const string ComparisonAlgorithmVersion = "phase1c-v1";
+    private const string ComparisonAlgorithmVersion = "phase1c-v2-hardlink-consistency";
 
     private static void EnsureComparisonSchema(SqliteConnection connection)
     {
