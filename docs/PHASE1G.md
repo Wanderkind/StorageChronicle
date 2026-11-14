@@ -74,6 +74,21 @@ Verify locally:
 3. Confirm a WMI-unavailable reading remains unavailable, while the independent command can display results if permissions permit.
 4. Confirm existing snapshots and prior WMI measurements remain unchanged. The CLI output is intentionally not saved in the snapshot database.
 
+## Confirmed Windows client behavior (2026-11-14)
+
+On the user's Windows 11 machine, `vssadmin list shadowstorage /on=C:` returned exit code 2 from the unelevated WPF app, while the same read-only command succeeded in an administrator PowerShell session. This strongly suggests elevation/permissions are the immediate difference, but an exit code alone is not a universal error classification.
+
+The successful elevated listing showed one association storing approximately 1.52 GB **used** and 2.00 GB **allocated** on C:, with a 4.32 GB configured maximum. A second C:-storage association showed zero usage/allocation and an unbounded maximum. These were *current values* and do not establish any change during older filesystem snapshot intervals.
+
+The corrective branch adds `Copy admin commands`, which copies only these fixed queries for the selected drive:
+
+    vssadmin list shadowstorage /on=C:
+    vssadmin list shadowstorage /for=C:
+
+It also checks whether the WPF process currently has an elevated administrator token and provides conservative guidance if a read-only query fails. It does not elevate the app, schedule a privileged process, execute untrusted input as a command, or import localized text into numerical VSS history. The /on and /for views can overlap: **do not add their totals together**.
+
+Five tests in VssAdminGuidanceTests cover safe fixed commands and privilege messaging. The new test suite should have 71 tests in total, pending local Windows verification.
+
 ## Known limitations and follow-up
 
 - WMI Win32_ShadowStorage availability and access rights vary across Windows editions, configuration and privileges. Unavailable must not be treated as zero.
