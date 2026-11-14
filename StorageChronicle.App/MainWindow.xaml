@@ -1,7 +1,7 @@
 <Window x:Class="StorageChronicle.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="StorageChronicle — Phase 1E" Height="760" Width="1120"
+        Title="StorageChronicle — Phase 1F" Height="760" Width="1120"
         MinWidth="850" MinHeight="600" WindowStartupLocation="CenterScreen">
     <Grid Margin="18">
         <Grid.RowDefinitions>
@@ -145,6 +145,27 @@
                                 Padding="12,4" IsEnabled="False"
                                 Click="NextFolderPageButton_Click"/>
                     </StackPanel>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Reconciliation">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="ReconciliationStatusText" Grid.Row="0"
+                               Text="Compare two saved snapshots to review reconciliation evidence."
+                               FontSize="15" FontWeight="SemiBold"
+                               TextWrapping="Wrap" Margin="0,0,0,10"/>
+                    <TextBlock Grid.Row="1" Foreground="DimGray"
+                               TextWrapping="Wrap" Margin="0,0,0,10"
+                               Text="Positive free-space loss means less free space at the end of the current scan. Positive file allocation change means measured file growth. Their difference is an unassigned accounting residual, never proof that Windows or a particular program consumed it."/>
+                    <TextBox x:Name="ReconciliationDetailsText" Grid.Row="2"
+                             IsReadOnly="True" FontFamily="Consolas" FontSize="12"
+                             Padding="12" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Disabled"/>
                 </Grid>
             </TabItem>
             <TabItem Header="Scan coverage">
