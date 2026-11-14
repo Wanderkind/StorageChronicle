@@ -175,10 +175,15 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="145"/>
                     </Grid.RowDefinitions>
                     <DockPanel Grid.Row="0" LastChildFill="True" Margin="0,0,0,8">
+                        <Button x:Name="CheckVssAdminButton" DockPanel.Dock="Right"
+                                Content="Check via vssadmin" Padding="10,5" Margin="8,0,0,0"
+                                ToolTip="Read-only shadow-storage listing for the selected scan drive; no numeric parsing or elevation"
+                                Click="CheckVssAdminButton_Click"/>
                         <Button x:Name="MeasureShadowButton" DockPanel.Dock="Right"
-                                Content="Measure VSS now" Padding="10,5" Margin="8,0,0,0"
+                                Content="Try WMI measurement" Padding="10,5" Margin="8,0,0,0"
                                 Click="MeasureShadowButton_Click"/>
                         <ComboBox x:Name="ShadowHistoryChoice" DisplayMemberPath="Display"
                                   MinHeight="29"
@@ -203,6 +208,13 @@
                             <DataGridTextColumn Header="Maximum" Binding="{Binding Maximum}" Width="110"/>
                         </DataGrid.Columns>
                     </DataGrid>
+                    <TextBox x:Name="VssAdminOutputText" Grid.Row="4"
+                             Margin="0,8,0,0" IsReadOnly="True"
+                             FontFamily="Consolas" FontSize="12"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             TextWrapping="Wrap"
+                             Text="Use 'Check via vssadmin' to inspect current shadow-storage associations on the selected drive. This is read-only diagnostic text, not a saved numeric VSS measurement."/>
                 </Grid>
             </TabItem>
             <TabItem Header="Scan coverage">
