@@ -10,6 +10,10 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _scanCancellation;
     private CancellationTokenSource? _compareCancellation;
     private StoredComparison? _activeComparison;
+    private StoredFolderSummary? _activeFolderSummary;
+    private bool _folderGrowthFirst = true;
+    private bool _loadingFolderPage;
+    private int _folderOffset;
     private bool _updatingChoices;
     private bool _loadingPage;
     private int _pageOffset;
@@ -23,6 +27,9 @@ public partial class MainWindow : Window
 
     private sealed record ChangeRow(string Kind, string Delta,
         string Before, string After, string Path);
+
+    private sealed record FolderRow(string Net, string Growth, string Reduction,
+        string ChangedGroups, string UnknownGroups, string FolderPath);
 
     public MainWindow()
     {
@@ -246,6 +253,8 @@ public partial class MainWindow : Window
         }
 
         _compareCancellation = new CancellationTokenSource();
+        BaselineChoice.IsEnabled = false;
+        CurrentChoice.IsEnabled = false;
         ScanButton.IsEnabled = false;
         BrowseButton.IsEnabled = false;
         CompareButton.IsEnabled = false;
@@ -269,20 +278,40 @@ public partial class MainWindow : Window
             showComparisonProgress = false;
             _activeComparison = report;
             await LoadChangePageAsync(0);
+
+            var folderProgress = new Progress<FolderBuildProgress>(p =>
+            {
+                if (showComparisonProgress)
+                    StatusText.Text = $"Summarizing folders: {p.ProcessedChanges:N0} " +
+                        $"of {p.TotalChanges:N0} file changes …";
+            });
+            StoredFolderSummary folders = await Task.Run(() =>
+                store.BuildFolderSummary(report.Id, token, folderProgress));
+            showComparisonProgress = false;
+            _activeFolderSummary = folders;
+            await LoadFolderPageAsync(0);
             StatusText.Text = $"Comparison #{baseline.Id} → #{current.Id}: " +
                 $"{report.ChangeCount:N0} changed file groups";
             SummaryText.Text =
                 $"Observed volume used-space delta: {Signed(report.VolumeUsedDeltaBytes)}\n" +
                 $"Known file allocation delta:     {Signed(report.KnownAllocatedDeltaBytes)}\n" +
                 $"Provisional unexplained delta:    {Signed(report.UnexplainedDeltaBytes)}\n" +
-                $"Changes with unknown allocation:  {report.UnknownAllocationChanges:N0}\n\n" +
+                $"Changes with unknown allocation:  {report.UnknownAllocationChanges:N0}\n" +
+                $"Folder totals (known net):       {Signed(folders.RootKnownNetDeltaBytes)}\n" +
+                $"Directories with changes:       {folders.FolderCount:N0}\n\n" +
+                "FOLDER ACCOUNTING\n" +
+                "Folder rows include descendants, and parent/child rows overlap. " +
+                "Hard-linked files are assigned to one canonical path per snapshot. " +
+                "Moves between directories may shift folder totals without using more space. " +
+                "Unknown allocations are excluded from known net deltas.\n\n" +
                 "CAVEATS\n" + string.Join("\n", report.Caveats.Select(x => "• " + x)) +
                 "\n\nResults are paged from SQLite. A nonzero residual does not identify " +
                 "a particular Windows component, and measurements are not atomic.";
         }
         catch (OperationCanceledException)
         {
-            StatusText.Text = "Comparison cancelled; incomplete results were rolled back.";
+            StatusText.Text = "Operation cancelled. Partial folder summaries were rolled back; " +
+                "any already committed file comparison remains cached.";
         }
         catch (Exception ex)
         {
@@ -294,10 +323,13 @@ public partial class MainWindow : Window
             _compareCancellation.Dispose();
             _compareCancellation = null;
             CancelCompareButton.IsEnabled = false;
+            BaselineChoice.IsEnabled = true;
+            CurrentChoice.IsEnabled = true;
             ScanButton.IsEnabled = true;
             BrowseButton.IsEnabled = true;
             UpdateCompareButtonState();
             UpdatePageButtons();
+            UpdateFolderPageButtons();
         }
     }
 
@@ -307,8 +339,17 @@ public partial class MainWindow : Window
     private void ClearComparisonView()
     {
         _activeComparison = null;
+        _activeFolderSummary = null;
         _pageOffset = 0;
+        _folderOffset = 0;
+        _folderGrowthFirst = true;
         ChangesGrid.ItemsSource = null;
+        FolderGrid.ItemsSource = null;
+        FolderPageIndicatorText.Text = "No folder summary loaded";
+        FolderSortButton.Content = "Sort: growth";
+        FolderSortButton.IsEnabled = false;
+        PreviousFolderPageButton.IsEnabled = false;
+        NextFolderPageButton.IsEnabled = false;
         PageIndicatorText.Text = "No comparison loaded";
         PreviousPageButton.IsEnabled = false;
         NextPageButton.IsEnabled = false;
@@ -369,6 +410,77 @@ public partial class MainWindow : Window
     {
         try { await LoadChangePageAsync(checked(_pageOffset + PageSize)); }
         catch (Exception ex) { StatusText.Text = "Page load failed: " + ex.Message; }
+    }
+
+    private void UpdateFolderPageButtons()
+    {
+        StoredFolderSummary? summary = _activeFolderSummary;
+        bool ready = summary is not null &&
+            !_loadingFolderPage && _compareCancellation is null;
+        FolderSortButton.IsEnabled = ready;
+        PreviousFolderPageButton.IsEnabled = ready && _folderOffset > 0;
+        NextFolderPageButton.IsEnabled = ready &&
+            (long)_folderOffset + PageSize < summary!.FolderCount;
+    }
+
+    private async Task LoadFolderPageAsync(int offset)
+    {
+        var store = _repository;
+        var summary = _activeFolderSummary;
+        if (store is null || summary is null || _loadingFolderPage)
+            return;
+        _loadingFolderPage = true;
+        UpdateFolderPageButtons();
+        try
+        {
+            FolderPage page = await Task.Run(() =>
+                store.ReadFolderPage(summary.ComparisonId, offset,
+                    PageSize, _folderGrowthFirst));
+            if (_activeFolderSummary?.ComparisonId != page.ComparisonId)
+                return;
+            _folderOffset = offset;
+            FolderGrid.ItemsSource = page.Folders.Select(x => new FolderRow(
+                Signed(x.KnownNetDeltaBytes),
+                Bytes(x.KnownGrowthBytes),
+                Bytes(x.KnownReductionBytes),
+                x.ChangedGroupCount.ToString("N0", CultureInfo.InvariantCulture),
+                x.UnknownAllocationGroups.ToString("N0", CultureInfo.InvariantCulture),
+                x.FolderPath)).ToList();
+
+            long pages = (summary.FolderCount + PageSize - 1) / PageSize;
+            long displayed = summary.FolderCount == 0 ? 0 : offset / PageSize + 1;
+            FolderPageIndicatorText.Text =
+                $"Page {displayed:N0} of {pages:N0} · " +
+                $"{summary.FolderCount:N0} folders";
+        }
+        finally
+        {
+            _loadingFolderPage = false;
+            UpdateFolderPageButtons();
+        }
+    }
+
+    private async void PreviousFolderPageButton_Click(object sender, RoutedEventArgs e)
+    {
+        try { await LoadFolderPageAsync(Math.Max(0, _folderOffset - PageSize)); }
+        catch (Exception ex) { StatusText.Text = "Folder page failed: " + ex.Message; }
+    }
+
+    private async void NextFolderPageButton_Click(object sender, RoutedEventArgs e)
+    {
+        try { await LoadFolderPageAsync(checked(_folderOffset + PageSize)); }
+        catch (Exception ex) { StatusText.Text = "Folder page failed: " + ex.Message; }
+    }
+
+    private async void FolderSortButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loadingFolderPage || _activeFolderSummary is null)
+            return;
+        _folderGrowthFirst = !_folderGrowthFirst;
+        FolderSortButton.Content =
+            _folderGrowthFirst ? "Sort: growth" : "Sort: most freed";
+        try { await LoadFolderPageAsync(0); }
+        catch (Exception ex) { StatusText.Text = "Folder sort failed: " + ex.Message; }
     }
 
     private static string Signed(long? value) => value is null
