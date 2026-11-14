@@ -168,4 +168,28 @@ public class SnapshotComparerTests
 
         Assert.Throws<ArgumentException>(() => SnapshotComparer.Compare(before, after));
     }
+
+    [Fact]
+    public void Conflicting_hardlink_observations_are_unknown_not_precisely_measured()
+    {
+        var before = Snap(1, 5_000,
+            File("a.txt", 100, 128, "SHARED"),
+            File("b.txt", 100, 128, "SHARED"));
+        // The same file identity has conflicting allocation and logical size
+        // readings at two hard-link paths during the current scan.
+        var after = Snap(2, 4_000,
+            File("a.txt", 100, 128, "SHARED"),
+            File("b.txt", 300, 384, "SHARED"));
+
+        var report = SnapshotComparer.Compare(before, after);
+        var change = Assert.Single(report.Changes);
+
+        Assert.Equal(ChangeKind.AllocationUnknown, change.Kind);
+        Assert.Null(change.AllocatedDeltaBytes);
+        Assert.Equal(1, report.UnknownAllocationChanges);
+        Assert.Equal(0L, report.KnownAllocatedDeltaBytes);
+        Assert.Contains(report.Caveats,
+            x => x.Contains("unknown allocated size", StringComparison.OrdinalIgnoreCase));
+    }
+
 }
