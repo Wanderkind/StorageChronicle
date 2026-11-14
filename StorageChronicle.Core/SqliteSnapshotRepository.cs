@@ -60,6 +60,7 @@ public sealed partial class SqliteSnapshotRepository
         setup.ExecuteNonQuery();
         EnsureComparisonSchema(connection);
         EnsureFolderSchema(connection);
+        EnsureShadowStorageSchema(connection);
     }
 
     public long Save(DiskSnapshot snapshot)
