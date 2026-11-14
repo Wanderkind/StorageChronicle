@@ -38,6 +38,10 @@ Run on a Windows machine with .NET 10 SDK:
 
 Then manually verify:
 
+- Click **Browse…**, choose a folder, and confirm the path text changes without starting a scan.
+- Cancel the picker and confirm the previous path remains unchanged.
+- Start a scan and confirm **Browse…** is disabled until it completes or is cancelled.
+
 1. Snapshot a test folder with several small files. Observe added, removed, grown, and shrunk changes correctly.
 2. Attempt to select two snapshots from different roots. Expect the UI to refuse the mismatched comparison; after scanning the same root twice, expect a compatible baseline.
 3. Rename a file without changing its identity. Expect a move with zero allocated delta.
