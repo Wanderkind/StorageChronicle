@@ -78,6 +78,28 @@ public sealed class StreamingSnapshotTests
     }
 
     [Fact]
+    public void Cancel_does_not_remove_previously_committed_history()
+    {
+        using var temp = new TempWorkspace();
+        var store = new SqliteSnapshotRepository(temp.Database);
+        var earlier = store.CaptureAndSave(temp.Input);
+        for (int n = 0; n < 260; n++)
+            File.WriteAllText(Path.Combine(temp.Input, $"{n:0000}.txt"), "test");
+
+        using var cancellation = new CancellationTokenSource();
+        var progress = new InlineProgress<ScanProgress>(p =>
+        {
+            if (p.FileCount >= 250)
+                cancellation.Cancel();
+        });
+
+        Assert.Throws<OperationCanceledException>(() =>
+            store.CaptureAndSave(temp.Input, cancellation.Token, progress));
+        Assert.Equal(earlier.Id, Assert.Single(store.List()).Id);
+        Assert.Equal(earlier.Summary.FileCount, store.Load(earlier.Id).Files.Count);
+    }
+
+    [Fact]
     public void Pre_cancelled_token_does_not_create_snapshot()
     {
         using var temp = new TempWorkspace();
