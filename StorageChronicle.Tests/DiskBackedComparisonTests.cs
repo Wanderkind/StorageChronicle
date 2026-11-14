@@ -206,4 +206,33 @@ public sealed class DiskBackedComparisonTests
         Assert.Equal(256L, report.KnownAllocatedDeltaBytes);
         Assert.Single(store.ReadComparisonPage(report.Id, 0, 100).Changes);
     }
+
+    [Fact]
+    public void Conflicting_hardlink_observations_remain_unknown_in_sqlite_and_folder_totals()
+    {
+        using var workspace = new Workspace();
+        var store = new SqliteSnapshotRepository(workspace.Database);
+        long baseline = store.Save(Snap(workspace.Root, 5_000,
+            File(workspace.Root, "a.txt", 100, 128, "SHARED"),
+            File(workspace.Root, "b.txt", 100, 128, "SHARED")));
+        long current = store.Save(Snap(workspace.Root, 4_000,
+            File(workspace.Root, "a.txt", 100, 128, "SHARED"),
+            File(workspace.Root, "b.txt", 300, 384, "SHARED")));
+
+        var disk = store.CompareAndStore(baseline, current);
+        var memory = SnapshotComparer.Compare(store.Load(baseline), store.Load(current));
+        var change = Assert.Single(store.ReadComparisonPage(disk.Id, 0).Changes);
+
+        Assert.Equal(ChangeKind.AllocationUnknown, change.Kind);
+        Assert.Null(change.AllocatedDeltaBytes);
+        Assert.Equal(0L, disk.KnownAllocatedDeltaBytes);
+        Assert.Equal(1L, disk.UnknownAllocationChanges);
+        Assert.Equal(memory.KnownAllocatedDeltaBytes, disk.KnownAllocatedDeltaBytes);
+        Assert.Equal(memory.UnknownAllocationChanges, disk.UnknownAllocationChanges);
+
+        var folders = store.BuildFolderSummary(disk.Id);
+        Assert.Equal(0L, folders.RootKnownNetDeltaBytes);
+        Assert.Equal(1L, folders.RootUnknownAllocationGroups);
+    }
+
 }
