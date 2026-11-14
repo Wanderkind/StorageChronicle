@@ -35,6 +35,10 @@
         </StackPanel>
 
         <Grid Grid.Row="2" Margin="0,3,0,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="18" />
@@ -44,16 +48,20 @@
             <StackPanel Grid.Column="0">
                 <TextBlock Text="Baseline snapshot" FontWeight="SemiBold" Margin="0,0,0,5"/>
                 <ComboBox x:Name="BaselineChoice" MinHeight="31"
-                          DisplayMemberPath="Display"/>
+                          DisplayMemberPath="Display"
+                          SelectionChanged="BaselineChoice_SelectionChanged"/>
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="Current snapshot" FontWeight="SemiBold" Margin="0,0,0,5"/>
                 <ComboBox x:Name="CurrentChoice" MinHeight="31"
-                          DisplayMemberPath="Display"/>
+                          DisplayMemberPath="Display"
+                          SelectionChanged="CurrentChoice_SelectionChanged"/>
             </StackPanel>
             <Button x:Name="CompareButton" Grid.Column="3" Content="Compare"
                     MinWidth="110" Padding="12,7" Margin="12,18,0,0"
                     Click="CompareButton_Click"/>
+            <TextBlock Grid.Row="1" Grid.ColumnSpan="4" x:Name="ComparisonHintText"
+                       Foreground="DimGray" Margin="0,7,0,0" TextWrapping="Wrap"/>
         </Grid>
 
         <DataGrid x:Name="ChangesGrid" Grid.Row="3"
