@@ -6,6 +6,8 @@ namespace StorageChronicle.Core;
 
 public sealed partial class SqliteSnapshotRepository
 {
+    private const string ComparisonAlgorithmVersion = "phase1c-v1";
+
     private static void EnsureComparisonSchema(SqliteConnection connection)
     {
         using var command = connection.CreateCommand();
@@ -14,6 +16,7 @@ public sealed partial class SqliteSnapshotRepository
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 baseline_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
                 current_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+                algorithm_version TEXT NOT NULL,
                 created_utc TEXT NOT NULL,
                 change_count INTEGER NOT NULL DEFAULT 0,
                 known_allocated_delta INTEGER NOT NULL DEFAULT 0,
@@ -21,7 +24,7 @@ public sealed partial class SqliteSnapshotRepository
                 volume_used_delta INTEGER NULL,
                 unexplained_delta INTEGER NULL,
                 caveats_json TEXT NOT NULL DEFAULT '[]',
-                UNIQUE (baseline_id, current_id)
+                UNIQUE (baseline_id, current_id, algorithm_version)
             );
             CREATE TABLE IF NOT EXISTS comparison_changes (
                 change_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,7 +44,7 @@ public sealed partial class SqliteSnapshotRepository
             CREATE INDEX IF NOT EXISTS ix_comparison_changes_rank
                 ON comparison_changes(
                     comparison_id, known_flag DESC, magnitude DESC,
-                    primary_path COLLATE SC_ORDINAL_NOCASE, change_id
+                    primary_path COLLATE NOCASE, change_id
                 );
             """;
         command.ExecuteNonQuery();
@@ -155,10 +158,12 @@ public sealed partial class SqliteSnapshotRepository
             cached.Transaction = transaction;
             cached.CommandText = """
                 SELECT id FROM comparisons
-                WHERE baseline_id=$baseline AND current_id=$current;
+                WHERE baseline_id=$baseline AND current_id=$current
+                  AND algorithm_version=$version;
                 """;
             cached.Parameters.AddWithValue("$baseline", baselineId);
             cached.Parameters.AddWithValue("$current", currentId);
+            cached.Parameters.AddWithValue("$version", ComparisonAlgorithmVersion);
             if (cached.ExecuteScalar() is long existingId)
                 return ReadStoredComparison(connection, transaction, existingId);
         }
@@ -166,12 +171,13 @@ public sealed partial class SqliteSnapshotRepository
         using var insertHeader = connection.CreateCommand();
         insertHeader.Transaction = transaction;
         insertHeader.CommandText = """
-            INSERT INTO comparisons(baseline_id,current_id,created_utc)
-            VALUES ($baseline,$current,$created);
+            INSERT INTO comparisons(baseline_id,current_id,algorithm_version,created_utc)
+            VALUES ($baseline,$current,$version,$created);
             SELECT last_insert_rowid();
             """;
         insertHeader.Parameters.AddWithValue("$baseline", baselineId);
         insertHeader.Parameters.AddWithValue("$current", currentId);
+        insertHeader.Parameters.AddWithValue("$version", ComparisonAlgorithmVersion);
         insertHeader.Parameters.AddWithValue("$created", Stamp(DateTimeOffset.UtcNow));
         long comparisonId = Convert.ToInt64(insertHeader.ExecuteScalar(),
             CultureInfo.InvariantCulture);
@@ -376,7 +382,7 @@ public sealed partial class SqliteSnapshotRepository
             FROM comparison_changes
             WHERE comparison_id=$id
             ORDER BY known_flag DESC, magnitude DESC,
-                     primary_path COLLATE SC_ORDINAL_NOCASE, change_id
+                     primary_path COLLATE NOCASE, change_id
             LIMIT $limit OFFSET $offset;
             """;
         command.Parameters.AddWithValue("$id", comparisonId);
