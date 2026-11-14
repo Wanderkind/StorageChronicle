@@ -85,7 +85,8 @@ public sealed partial class SqliteSnapshotRepository
         if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
         if (pageSize is < 1 or > 500)
             throw new ArgumentOutOfRangeException(nameof(pageSize));
-        if (filter.HasValue && !Enum.IsDefined(filter.Value))
+        if (filter.HasValue && filter.Value is not
+            (IssueSeverity.Info or IssueSeverity.Warning or IssueSeverity.Error))
             throw new ArgumentOutOfRangeException(nameof(filter));
 
         using var connection = Open();
