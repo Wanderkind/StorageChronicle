@@ -1,7 +1,7 @@
 # Offline Windows release-candidate verification. No Git operations, push,
 # merge, GitHub Actions, cleanup, elevation, or source-file mutation.
 [CmdletBinding()]
-param([switch]$RunApp, [int]$MinimumTests = 73)
+param([switch]$RunApp, [int]$MinimumTests = 74)
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
