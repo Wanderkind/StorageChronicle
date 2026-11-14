@@ -14,6 +14,8 @@ public sealed class SnapshotScanner
         string fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
         if (!Directory.Exists(fullRoot))
             throw new DirectoryNotFoundException(fullRoot);
+        if ((File.GetAttributes(fullRoot) & FileAttributes.ReparsePoint) != 0)
+            throw new IOException("The selected scan root is a reparse point. Choose its real target directory instead.");
         string volumeRoot = Path.TrimEndingDirectorySeparator(
             Path.GetPathRoot(fullRoot) ?? throw new IOException("Cannot identify volume root."));
 
