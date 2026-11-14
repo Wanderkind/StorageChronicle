@@ -27,7 +27,8 @@ public sealed partial class SqliteSnapshotRepository
                 (SELECT count(*) FROM snapshot_issues i
                  WHERE i.snapshot_id=s.id AND i.severity=1),
                 (SELECT count(*) FROM snapshot_issues i
-                 WHERE i.snapshot_id=s.id AND i.severity=0)
+                 WHERE i.snapshot_id=s.id AND i.severity=0),
+                s.volume_capacity_bytes
             FROM snapshots s WHERE s.id=$id;
             """;
         command.Parameters.AddWithValue("$id", snapshotId);
@@ -36,6 +37,7 @@ public sealed partial class SqliteSnapshotRepository
         DateTimeOffset started, finished;
         long? freeBefore, freeAfter;
         long fileCount, missingAllocations, missingIdentities, errors, warnings, infos;
+        long? capacity;
 
         using (var reader = command.ExecuteReader())
         {
@@ -53,6 +55,7 @@ public sealed partial class SqliteSnapshotRepository
             errors = reader.GetInt64(9);
             warnings = reader.GetInt64(10);
             infos = reader.GetInt64(11);
+            capacity = ReadNullableInt64(reader, 12);
         }
 
         using var groups = connection.CreateCommand();
@@ -74,7 +77,7 @@ public sealed partial class SqliteSnapshotRepository
         return new(snapshotId, root, volume, started, finished,
             fileCount, errors, warnings, infos,
             missingAllocations, missingIdentities,
-            freeBefore, freeAfter, categories);
+            freeBefore, freeAfter, categories, capacity);
     }
 
     /// <summary>Retrieve a bounded, stable page of saved scan notices.</summary>
