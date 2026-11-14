@@ -302,6 +302,13 @@ public partial class MainWindow : Window
                 $"{folders.FolderCount:N0} descendant folders with changes · " +
                 $"{folders.RootUnknownAllocationGroups:N0} unknown groups";
             await LoadFolderPageAsync(0);
+            token.ThrowIfCancellationRequested();
+            ReconciliationEvidence evidence = await Task.Run(() =>
+                store.LoadReconciliation(report.Id));
+            token.ThrowIfCancellationRequested();
+            ReconciliationStatusText.Text =
+                $"Reconciliation: {evidence.Status} · Snapshot #{baseline.Id} → #{current.Id}";
+            ReconciliationDetailsText.Text = FormatReconciliation(evidence);
             StatusText.Text = $"Comparison #{baseline.Id} → #{current.Id}: " +
                 $"{report.ChangeCount:N0} changed file groups";
             SummaryText.Text =
@@ -352,6 +359,9 @@ public partial class MainWindow : Window
     {
         _activeComparison = null;
         _activeFolderSummary = null;
+        ReconciliationStatusText.Text =
+            "Compare two saved snapshots to review reconciliation evidence.";
+        ReconciliationDetailsText.Text = "";
         FolderTotalsText.Text = "No folder summary loaded";
         _pageOffset = 0;
         _folderOffset = 0;
@@ -633,6 +643,44 @@ public partial class MainWindow : Window
     {
         try { await LoadCoveragePageAsync(checked(_coveragePageOffset + PageSize)); }
         catch (Exception ex) { CoverageSummaryText.Text = "Page query failed: " + ex.Message; }
+    }
+
+    private static string FormatReconciliation(ReconciliationEvidence r)
+    {
+        var lines = new List<string>
+        {
+            "STORAGE RECONCILIATION — OBSERVATIONS, NOT CAUSAL ATTRIBUTION",
+            "",
+            $"Baseline: #{r.Baseline.SnapshotId} · {r.Baseline.StartedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}",
+            $"Current:  #{r.Current.SnapshotId} · {r.Current.StartedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}",
+            $"Scope:    {r.Current.RootPath}",
+            "",
+            $"Baseline free (end):              {Signed(r.Baseline.FreeBytesAfter)}",
+            $"Current free (end):               {Signed(r.Current.FreeBytesAfter)}",
+            $"Observed free-space loss:         {Signed(r.FreeSpaceLossBytes)}",
+            $"Capacity change (current - old): {Signed(r.CapacityChangeBytes)}",
+            $"Volume used-space change:        {Signed(r.VolumeUsedChangeBytes)}",
+            $"Known file allocation delta:     {Signed(r.KnownFileAllocationDeltaBytes)}",
+            $"UNEXPLAINED RESIDUAL:            {Signed(r.UnexplainedResidualBytes)}",
+            $"Unknown changed file groups:     {r.UnknownChangedFileGroups:N0}",
+            "",
+            "FREE-SPACE CHANGE DURING SCANS (positive means loss)",
+            $"During baseline scan:            {Signed(r.BaselineScanFreeSpaceLossBytes)}",
+            $"Between scan intervals:          {Signed(r.BetweenScansFreeSpaceLossBytes)}",
+            $"During current scan:             {Signed(r.CurrentScanFreeSpaceLossBytes)}",
+            "",
+            "RECORDED OBSERVATION LIMITATIONS",
+            $"Baseline: {r.Baseline.FileCount:N0} files, {r.Baseline.ErrorCount:N0} read errors, " +
+                $"{r.Baseline.MissingAllocationCount:N0} unknown allocation sizes",
+            $"Current:  {r.Current.FileCount:N0} files, {r.Current.ErrorCount:N0} read errors, " +
+                $"{r.Current.MissingAllocationCount:N0} unknown allocation sizes",
+            ""
+        };
+        lines.AddRange(r.Limitations.Select(x => "• " + x));
+        lines.Add("");
+        lines.Add("This is not an itemized explanation of Windows-managed storage.");
+        lines.Add("Do not add parent and child folder totals or delete system files based on the residual.");
+        return string.Join(Environment.NewLine, lines);
     }
 
     private static string Signed(long? value) => value is null
