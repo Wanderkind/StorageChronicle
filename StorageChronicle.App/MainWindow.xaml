@@ -27,6 +27,10 @@
                 <Button x:Name="CancelButton" DockPanel.Dock="Right" Content="Cancel scan"
                         MinWidth="105" Padding="12,7" Margin="8,0,0,0"
                         IsEnabled="False" Click="CancelButton_Click"/>
+                <Button x:Name="BrowseButton" DockPanel.Dock="Right" Content="Browse…"
+                        MinWidth="100" Padding="12,7" Margin="8,0,0,0"
+                        ToolTip="Choose a directory using File Explorer"
+                        Click="BrowseButton_Click"/>
                 <TextBox x:Name="RootPathInput" VerticalContentAlignment="Center"
                          FontFamily="Consolas" Padding="8,6" />
             </DockPanel>
