@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="StorageChronicle.App/StorageChronicle.App.csproj" />
+  <Project Path="StorageChronicle.Core/StorageChronicle.Core.csproj" />
+  <Project Path="StorageChronicle.Tests/StorageChronicle.Tests.csproj" />
+</Solution>
