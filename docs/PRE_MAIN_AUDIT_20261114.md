@@ -109,6 +109,20 @@ Manual acceptance:
 - For large C: scans, check actual error counts and temp-disk usage; do not infer
   precision merely from a low residual.
 
+## Additional pre-release hardening
+
+- The WPF comparison screen now uses separate progress flags for file comparison and folder summarization; late callbacks from one phase cannot suppress the other phase's progress.
+- Added `scripts/build-preview-package.ps1`, which requires a clean working tree, exact-commit `verification.txt`, the matching TRX report, at least 74 passing tests, and zero failures or skips before invoking a local self-contained win-x64 publish.
+- The packaging script creates a portable ZIP and SHA-256 manifest under ignored `artifacts/preview/`; it does **not** create a GitHub release, install software, alter monitored files or elevate privileges.
+- Package generation and the extracted executable still require independent Windows testing; a passing Debug xUnit suite alone does not validate a Release publish.
+
+### Local-only preview procedure (after the merge gate passes)
+
+1. Run `scripts/verify-release-candidate.ps1` on the **exact review head** and preserve its printed evidence path.
+2. Run `scripts/build-preview-package.ps1 -VerificationFile <absolute path to verification.txt>` on that same commit.
+3. Verify the ZIP's SHA-256 against the manifest, extract the entire archive and launch `StorageChronicle.App.exe` as an ordinary user.
+4. Confirm previous SQLite snapshots remain selectable; perform file/folder/coverage/reconciliation/VSS smoke tests on the extracted build before any GitHub release.
+
 ## Integration and release policy
 
 - Keep this PR in **draft** until the exact commit's verification evidence and
