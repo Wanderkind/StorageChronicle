@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using StorageChronicle.Core;
 
 namespace StorageChronicle.Tests;
@@ -233,6 +234,39 @@ public sealed class DiskBackedComparisonTests
         var folders = store.BuildFolderSummary(disk.Id);
         Assert.Equal(0L, folders.RootKnownNetDeltaBytes);
         Assert.Equal(1L, folders.RootUnknownAllocationGroups);
+    }
+
+
+    [Fact]
+    public void Versioned_comparison_ignores_an_older_algorithm_cache()
+    {
+        using var workspace = new Workspace();
+        var store = new SqliteSnapshotRepository(workspace.Database);
+        long baseline = store.Save(Snap(workspace.Root, 9_000));
+        long current = store.Save(Snap(workspace.Root, 8_000,
+            File(workspace.Root, "new.bin", 100, 128, "NEW")));
+
+        long oldCacheId;
+        using (var connection = new SqliteConnection($"Data Source={workspace.Database}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO comparisons
+                    (baseline_id, current_id, algorithm_version, created_utc)
+                VALUES ($baseline, $current, 'phase1c-v1', $stamp);
+                SELECT last_insert_rowid();
+                """;
+            command.Parameters.AddWithValue("$baseline", baseline);
+            command.Parameters.AddWithValue("$current", current);
+            command.Parameters.AddWithValue("$stamp", DateTimeOffset.UtcNow.ToString("O"));
+            oldCacheId = (long)command.ExecuteScalar()!;
+        }
+
+        StoredComparison corrected = store.CompareAndStore(baseline, current);
+        Assert.NotEqual(oldCacheId, corrected.Id);
+        Assert.Equal(128L, corrected.KnownAllocatedDeltaBytes);
+        Assert.Single(store.ReadComparisonPage(corrected.Id, 0).Changes);
     }
 
 }
