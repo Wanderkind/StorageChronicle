@@ -6,7 +6,7 @@ A local, read-only Windows disk-space **snapshot comparator** built with .NET 10
 
 ## What it does now
 
-- Scans an existing directory or entire volume root (such as C:\).
+- Scans an existing directory or entire volume root (such as C:\). The **Browse…** button opens the native Windows folder picker; selecting a folder updates the path, but does not start scanning automatically.
 - Records file paths, logical size, best-effort NTFS allocated size, file identity, link count, and timestamps.
 - Records scan errors, excluded reparse points, volume capacity, and free space both before and after a scan.
 - Stores snapshot metadata locally in SQLite in a single transaction.
