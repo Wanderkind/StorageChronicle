@@ -8,6 +8,7 @@ public partial class MainWindow : Window
 {
     private SqliteSnapshotRepository? _repository;
     private CancellationTokenSource? _scanCancellation;
+    private bool _updatingChoices;
 
     private sealed record SnapshotChoice(long Id, string RootPath, DateTimeOffset When, int Files)
     {
@@ -58,11 +59,68 @@ public partial class MainWindow : Window
         var choices = _repository.List()
             .Select(s => new SnapshotChoice(s.Id, s.RootPath, s.StartedUtc, s.FileCount))
             .ToList();
-        BaselineChoice.ItemsSource = choices;
-        CurrentChoice.ItemsSource = choices;
-        CurrentChoice.SelectedIndex = choices.Count > 0 ? 0 : -1;
-        BaselineChoice.SelectedIndex = choices.Count > 1 ? 1 : -1;
-        CompareButton.IsEnabled = choices.Count > 1;
+        _updatingChoices = true;
+        try
+        {
+            CurrentChoice.ItemsSource = choices;
+            CurrentChoice.SelectedIndex = choices.Count > 0 ? 0 : -1;
+        }
+        finally
+        {
+            _updatingChoices = false;
+        }
+        UpdateBaselineChoices();
+    }
+
+    private void CurrentChoice_SelectionChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!_updatingChoices)
+            UpdateBaselineChoices();
+    }
+
+    private void BaselineChoice_SelectionChanged(object sender,
+        System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!_updatingChoices)
+            UpdateCompareButtonState();
+    }
+
+    private void UpdateBaselineChoices()
+    {
+        var current = CurrentChoice.SelectedItem as SnapshotChoice;
+        var all = CurrentChoice.ItemsSource as IEnumerable<SnapshotChoice>;
+        var candidates = all?.Where(x => current is not null &&
+                x.Id < current.Id &&
+                PathComparer.SamePath(x.RootPath, current.RootPath)).ToArray()
+            ?? [];
+
+        _updatingChoices = true;
+        try
+        {
+            BaselineChoice.ItemsSource = candidates;
+            BaselineChoice.SelectedIndex = candidates.Length > 0 ? 0 : -1;
+        }
+        finally
+        {
+            _updatingChoices = false;
+        }
+
+        ComparisonHintText.Text = current is null ? "Take a snapshot to begin."
+            : candidates.Length == 0
+                ? "No earlier snapshot for this directory. Scan the same directory again to enable comparison."
+                : $"Select one of {candidates.Length:N0} earlier snapshot(s) of the same directory.";
+        UpdateCompareButtonState();
+    }
+
+    private void UpdateCompareButtonState()
+    {
+        CompareButton.IsEnabled =
+            _repository is not null && _scanCancellation is null &&
+            BaselineChoice.SelectedItem is SnapshotChoice baseline &&
+            CurrentChoice.SelectedItem is SnapshotChoice current &&
+            baseline.Id < current.Id &&
+            PathComparer.SamePath(baseline.RootPath, current.RootPath);
     }
 
     private async void ScanButton_Click(object sender, RoutedEventArgs e)
@@ -123,7 +181,7 @@ public partial class MainWindow : Window
             _scanCancellation = null;
             ScanButton.IsEnabled = true;
             CancelButton.IsEnabled = false;
-            CompareButton.IsEnabled = BaselineChoice.Items.Count > 1;
+            UpdateCompareButtonState();
         }
     }
 
@@ -140,9 +198,10 @@ public partial class MainWindow : Window
             MessageBox.Show("Select a baseline and a current snapshot.");
             return;
         }
-        if (baseline.Id == current.Id)
+        if (baseline.Id >= current.Id ||
+            !PathComparer.SamePath(baseline.RootPath, current.RootPath))
         {
-            MessageBox.Show("Select two different snapshots.");
+            MessageBox.Show("Select an earlier baseline from the same directory.");
             return;
         }
         CompareButton.IsEnabled = false;
@@ -175,7 +234,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            CompareButton.IsEnabled = true;
+            UpdateCompareButtonState();
         }
     }
 
