@@ -9,6 +9,8 @@ public sealed record FileRecord(
     uint? HardLinkCount,
     DateTimeOffset LastWriteUtc);
 
+public sealed record ScanProgress(int FileCount, int NoticeCount, string CurrentDirectory);
+
 public enum IssueSeverity { Info, Warning, Error }
 
 public sealed record ScanIssue(string Path, string Code, string Detail, IssueSeverity Severity);
