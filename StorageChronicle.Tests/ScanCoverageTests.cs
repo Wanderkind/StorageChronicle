@@ -155,7 +155,7 @@ public sealed class ScanCoverageTests
 
         Assert.Equal(2, store.List().Count);
         Assert.Equal(before.ChangeCount, store.LoadComparison(comparison.Id).ChangeCount);
-        Assert.Equal(1, store.ReadComparisonPage(comparison.Id, 0).Changes.Count);
+        Assert.Single(store.ReadComparisonPage(comparison.Id, 0).Changes);
     }
 
     [Fact]
