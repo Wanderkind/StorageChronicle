@@ -61,9 +61,14 @@
                           DisplayMemberPath="Display"
                           SelectionChanged="CurrentChoice_SelectionChanged"/>
             </StackPanel>
-            <Button x:Name="CompareButton" Grid.Column="3" Content="Compare"
-                    MinWidth="110" Padding="12,7" Margin="12,18,0,0"
-                    Click="CompareButton_Click"/>
+            <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="12,18,0,0">
+                <Button x:Name="CompareButton" Content="Compare"
+                        MinWidth="95" Padding="12,7"
+                        Click="CompareButton_Click"/>
+                <Button x:Name="CancelCompareButton" Content="Cancel comparison"
+                        MinWidth="130" Padding="12,7" Margin="7,0,0,0"
+                        IsEnabled="False" Click="CancelCompareButton_Click"/>
+            </StackPanel>
             <TextBlock Grid.Row="1" Grid.ColumnSpan="4" x:Name="ComparisonHintText"
                        Foreground="DimGray" Margin="0,7,0,0" TextWrapping="Wrap"/>
         </Grid>
@@ -89,11 +94,23 @@
         <Grid Grid.Row="4">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             <TextBlock x:Name="StatusText" Grid.Row="0" Text="Ready." FontWeight="SemiBold"
                        Margin="0,0,0,8" TextWrapping="Wrap"/>
-            <TextBox x:Name="SummaryText" Grid.Row="1" IsReadOnly="True"
+            <StackPanel Grid.Row="1" Orientation="Horizontal"
+                        HorizontalAlignment="Right" Margin="0,0,0,6">
+                <Button x:Name="PreviousPageButton" Content="Previous"
+                        Padding="12,4" IsEnabled="False"
+                        Click="PreviousPageButton_Click"/>
+                <TextBlock x:Name="PageIndicatorText" Text="No comparison loaded"
+                           VerticalAlignment="Center" Margin="14,0,14,0"/>
+                <Button x:Name="NextPageButton" Content="Next"
+                        Padding="12,4" IsEnabled="False"
+                        Click="NextPageButton_Click"/>
+            </StackPanel>
+            <TextBox x:Name="SummaryText" Grid.Row="2" IsReadOnly="True"
                      VerticalScrollBarVisibility="Auto"
                      TextWrapping="Wrap" Padding="9"
                      FontFamily="Consolas" FontSize="12"/>
