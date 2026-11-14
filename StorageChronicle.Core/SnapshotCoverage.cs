@@ -21,7 +21,8 @@ public sealed record SnapshotCoverage(
     long MissingIdentityCount,
     long? FreeBytesBefore,
     long? FreeBytesAfter,
-    IReadOnlyList<ScanIssueCategory> Categories)
+    IReadOnlyList<ScanIssueCategory> Categories,
+    long? VolumeCapacityBytes = null)
 {
     public long NoticeCount => ErrorCount + WarningCount + InfoCount;
 
