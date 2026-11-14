@@ -89,6 +89,25 @@ public sealed class RepositoryAndScannerTests
             () => new SnapshotScanner().Capture(absent));
     }
 
+
+    [Fact]
+    public void Duplicate_file_paths_roll_back_the_entire_snapshot()
+    {
+        using var temp = new TestDirectory();
+        var store = new SqliteSnapshotRepository(
+            Path.Combine(temp.PathValue, "atomic.sqlite"));
+        string path = Path.Combine(temp.PathValue, "duplicate.txt");
+        var record = new FileRecord(path, 1, 4096, "X", 1, DateTimeOffset.UtcNow);
+        var snapshot = new DiskSnapshot(0, temp.PathValue,
+            Path.GetPathRoot(temp.PathValue)!, DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow, 10000, 5000, 5000,
+            [record, record], []);
+
+        Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(
+            () => store.Save(snapshot));
+        Assert.Empty(store.List());
+    }
+
     [Fact]
     public void Nonexistent_snapshot_cannot_be_loaded()
     {
