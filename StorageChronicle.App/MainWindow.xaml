@@ -1,7 +1,7 @@
 <Window x:Class="StorageChronicle.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="StorageChronicle — Phase 1D" Height="760" Width="1120"
+        Title="StorageChronicle — Phase 1E" Height="760" Width="1120"
         MinWidth="850" MinHeight="600" WindowStartupLocation="CenterScreen">
     <Grid Margin="18">
         <Grid.RowDefinitions>
@@ -144,6 +144,65 @@
                         <Button x:Name="NextFolderPageButton" Content="Next"
                                 Padding="12,4" IsEnabled="False"
                                 Click="NextFolderPageButton_Click"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Scan coverage">
+                <Grid Margin="6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal"
+                                Margin="0,0,0,8">
+                        <TextBlock Text="Inspect saved snapshot:"
+                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="CoverageSnapshotChoice" Width="490"
+                                  MinHeight="28" DisplayMemberPath="Display"
+                                  SelectionChanged="CoverageSnapshotChoice_SelectionChanged"/>
+                        <TextBlock Text="Notice filter:"
+                                   VerticalAlignment="Center" Margin="16,0,8,0"/>
+                        <ComboBox x:Name="CoverageFilterChoice" MinWidth="125"
+                                  SelectedIndex="0"
+                                  SelectionChanged="CoverageFilterChoice_SelectionChanged">
+                            <ComboBoxItem Content="All notices"/>
+                            <ComboBoxItem Content="Read errors"/>
+                            <ComboBoxItem Content="Warnings"/>
+                            <ComboBoxItem Content="Information"/>
+                        </ComboBox>
+                    </StackPanel>
+                    <TextBlock x:Name="CoverageSummaryText" Grid.Row="1"
+                               FontWeight="SemiBold" TextWrapping="Wrap"
+                               Text="Select a saved snapshot to inspect its recorded coverage."
+                               Margin="0,0,0,5"/>
+                    <TextBlock x:Name="CoverageCategoriesText" Grid.Row="2"
+                               TextWrapping="Wrap" Foreground="DimGray"
+                               Margin="0,0,0,8" MaxHeight="75"/>
+                    <DataGrid x:Name="CoverageIssuesGrid" Grid.Row="3"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserAddRows="False" EnableRowVirtualization="True"
+                              AlternatingRowBackground="#F5F7F9">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="85"/>
+                            <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="185"/>
+                            <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="*"/>
+                            <DataGridTextColumn Header="Details" Binding="{Binding Detail}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="4" Orientation="Horizontal"
+                                HorizontalAlignment="Right" Margin="0,6,0,0">
+                        <Button x:Name="PreviousCoveragePageButton"
+                                Content="Previous" Padding="12,4" IsEnabled="False"
+                                Click="PreviousCoveragePageButton_Click"/>
+                        <TextBlock x:Name="CoveragePageIndicatorText"
+                                   Text="No scan notices loaded"
+                                   VerticalAlignment="Center" Margin="14,0,14,0"/>
+                        <Button x:Name="NextCoveragePageButton"
+                                Content="Next" Padding="12,4" IsEnabled="False"
+                                Click="NextCoveragePageButton_Click"/>
                     </StackPanel>
                 </Grid>
             </TabItem>
