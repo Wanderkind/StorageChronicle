@@ -105,7 +105,7 @@ public sealed class SqliteSnapshotRepository
             fLogical.Value = file.LogicalBytes;
             fAllocated.Value = DbValue(file.AllocatedBytes);
             fIdentity.Value = (object?)file.FileIdentity ?? DBNull.Value;
-            fLinks.Value = file.HardLinkCount is uint count ? (long)count : DBNull.Value;
+            fLinks.Value = file.HardLinkCount is uint count ? (object)(long)count : DBNull.Value;
             fModified.Value = Stamp(file.LastWriteUtc);
             insertFile.ExecuteNonQuery();
         }
