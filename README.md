@@ -2,7 +2,7 @@
 
 A local, read-only Windows disk-space **snapshot comparator** built with .NET 10 and WPF.
 
-**Status:** Phase 1G's read-only vssadmin fallback launched on Windows but returned exit code 2 without elevation; the same listing succeeded in an administrator PowerShell session. The subsequent privilege-guidance and copy-command update is **not yet compiled or tested on Windows**. Never attribute current VSS allocation to older filesystem changes without matched-time evidence.
+**Status:** Phases 1A–1G are consolidated in a **draft pre-main review branch**. Historical Windows checks confirmed many functions, but the final review head, its comparison-accounting correction, and the full 74-test suite have **not yet passed Windows verification**. Do not merge or release until the documented gate passes. An ordinary desktop process cannot run privileged VSS diagnostics; no automatic elevation is performed.
 
 ## What it does now
 
@@ -50,5 +50,7 @@ This is a file-inventory comparator, not yet a full Windows disk accounting engi
 - Comparison detail is paged (100 changes at a time). SQLite may use temporary disk files for large sorts, and stored comparison results can increase the database size. The original in-memory comparison engine remains for compatibility and unit testing; the WPF app uses the disk-backed path.
 - The SQLite database contains filenames and paths: treat it as **private local data**, never commit it.
 - On platforms other than Windows, the scanner records allocated size as unknown; the desktop app requires Windows.
+
+For the final integration gate, see [Pre-main audit and release verification](docs/PRE_MAIN_AUDIT_20261114.md) and run `scripts/verify-release-candidate.ps1` on Windows. It generates Git-ignored TRX evidence under `artifacts/qa/`. Do not treat an unassigned volume-space residual as a file-cleanup recommendation.
 
 See [Phase 1A scope and checks](docs/PHASE1A.md), [Phase 1B streaming validation](docs/PHASE1B.md),  [Phase 1C disk-backed comparison](docs/PHASE1C.md), and [Phase 1D folder growth summaries](docs/PHASE1D.md). See also [Phase 1E scan coverage](docs/PHASE1E.md) [Phase 1F reconciliation](docs/PHASE1F.md), and [Phase 1G VSS observations](docs/PHASE1G.md).
