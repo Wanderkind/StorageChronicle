@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     private int _pageOffset;
     private const int PageSize = 100;
     private bool _shadowReadingInProgress;
+    private bool _vssAdminChecking;
     private bool _shadowHistoryUpdating;
 
     private sealed record SnapshotChoice(long Id, string RootPath, DateTimeOffset When, int Files)
@@ -760,6 +761,47 @@ public partial class MainWindow : Window
         {
             _shadowReadingInProgress = false;
             MeasureShadowButton.IsEnabled = true;
+        }
+    }
+
+    private async void CheckVssAdminButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vssAdminChecking) return;
+        string input = RootPathInput.Text.Trim();
+        string? drive = System.IO.Path.GetPathRoot(input);
+        if (string.IsNullOrWhiteSpace(drive))
+        {
+            VssAdminOutputText.Text = "Choose a valid drive-root scan path first (for example C:\\).";
+            return;
+        }
+
+        _vssAdminChecking = true;
+        CheckVssAdminButton.IsEnabled = false;
+        VssAdminOutputText.Text = "Running a read-only vssadmin list shadowstorage query …";
+        try
+        {
+            VssAdminDiagnostic result = await VssAdminInspector.CheckAsync(drive);
+            VssAdminOutputText.Text =
+                $"Observed: {result.ObservedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}\n" +
+                $"Command: {result.Command}\n" +
+                $"Exit code: {result.ExitCode?.ToString() ?? "not available"}\n" +
+                (result.TimedOut ? "TIMEOUT: Query was terminated.\n" : "") +
+                "\n" + (string.IsNullOrWhiteSpace(result.Output)
+                    ? "(No standard output.)" : result.Output) +
+                (string.IsNullOrWhiteSpace(result.Error)
+                    ? "" : "\nERROR / DIAGNOSTICS:\n" + result.Error) +
+                (result.Succeeded
+                    ? "\n\nThis is raw localized command output. It has not been converted into numerical accounting."
+                    : "\n\nIf access is denied, you may run the SAME read-only command in an administrator PowerShell window. No automatic elevation is performed.");
+        }
+        catch (Exception ex)
+        {
+            VssAdminOutputText.Text = "Diagnostic failed: " + ex.Message;
+        }
+        finally
+        {
+            _vssAdminChecking = false;
+            CheckVssAdminButton.IsEnabled = true;
         }
     }
 
