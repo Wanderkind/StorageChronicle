@@ -68,7 +68,19 @@ public sealed class DiskBackedComparisonTests
                 .OrderBy(x => x.PrimaryPath).ToArray(),
             page.Changes.Select(x => (x.Kind, x.PrimaryPath, x.AllocatedDeltaBytes))
                 .OrderBy(x => x.PrimaryPath).ToArray());
-        Assert.Equal(actual, store.LoadComparison(actual.Id));
+        // Records compare IReadOnlyList<string> by reference; deserialization
+        // returns an array while the newly computed summary holds a List.
+        // Verify persisted values and ordered caveat contents instead.
+        var reloaded = store.LoadComparison(actual.Id);
+        Assert.Equal(actual.Id, reloaded.Id);
+        Assert.Equal(actual.BaselineId, reloaded.BaselineId);
+        Assert.Equal(actual.CurrentId, reloaded.CurrentId);
+        Assert.Equal(actual.ChangeCount, reloaded.ChangeCount);
+        Assert.Equal(actual.KnownAllocatedDeltaBytes, reloaded.KnownAllocatedDeltaBytes);
+        Assert.Equal(actual.UnknownAllocationChanges, reloaded.UnknownAllocationChanges);
+        Assert.Equal(actual.VolumeUsedDeltaBytes, reloaded.VolumeUsedDeltaBytes);
+        Assert.Equal(actual.UnexplainedDeltaBytes, reloaded.UnexplainedDeltaBytes);
+        Assert.Equal<string>(actual.Caveats, reloaded.Caveats);
     }
 
     [Fact]
