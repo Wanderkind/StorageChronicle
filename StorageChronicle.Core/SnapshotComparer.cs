@@ -6,9 +6,9 @@ public static class SnapshotComparer
 {
     public static ComparisonReport Compare(DiskSnapshot baseline, DiskSnapshot current)
     {
-        if (!PathComparer.Equals(baseline.RootPath, current.RootPath))
+        if (!PathComparer.SamePath(baseline.RootPath, current.RootPath))
             throw new ArgumentException("Snapshots must cover the same scan root.");
-        if (!PathComparer.Equals(baseline.VolumeRoot, current.VolumeRoot))
+        if (!PathComparer.SamePath(baseline.VolumeRoot, current.VolumeRoot))
             throw new ArgumentException("Snapshots are from different volumes.");
 
         var before = Index(baseline.Files);
@@ -52,7 +52,6 @@ public static class SnapshotComparer
             else if (pathsDiffer)
                 kind = oldPaths.Length == 1 && newPaths.Length == 1
                     ? ChangeKind.Moved : ChangeKind.LinksChanged;
-            else if (missingSize) kind = ChangeKind.AllocationUnknown;
             else kind = null;
 
             if (kind is null) continue;
@@ -85,6 +84,10 @@ public static class SnapshotComparer
             caveats.Add("At least one snapshot contains inaccessible or unreadable paths.");
         if (unknownCount > 0)
             caveats.Add($"{unknownCount} changed file group(s) have unknown allocated size.");
+        int missingReadings = baseline.Files.Count(x => x.AllocatedBytes is null) +
+                              current.Files.Count(x => x.AllocatedBytes is null);
+        if (missingReadings > 0)
+            caveats.Add($"{missingReadings} file observation(s) lack allocation measurements; allocation-only changes may be invisible.");
         if (baseline.Issues.Any(x => x.Code == "REPARSE_EXCLUDED") ||
             current.Issues.Any(x => x.Code == "REPARSE_EXCLUDED"))
             caveats.Add("Reparse points were excluded, including junctions and symlinks.");
@@ -96,7 +99,7 @@ public static class SnapshotComparer
 
         return new ComparisonReport(baseline.Id, current.Id, changes, knownDelta,
             unknownCount, usedDelta, unexplained,
-            caveats.Count > 1, caveats);
+            true, caveats);
     }
 
     private static bool Drifted(DiskSnapshot s) =>
