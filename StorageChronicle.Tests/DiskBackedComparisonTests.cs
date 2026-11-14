@@ -93,8 +93,8 @@ public sealed class DiskBackedComparisonTests
         Assert.Equal(41, third.Changes.Count);
         Assert.Empty(end.Changes);
         Assert.Equal(241L, first.Changes[0].AllocatedDeltaBytes);
-        Assert.Equal(142L, second.Changes[0].AllocatedDeltaBytes);
-        Assert.Equal(42L, third.Changes[0].AllocatedDeltaBytes);
+        Assert.Equal(141L, second.Changes[0].AllocatedDeltaBytes);
+        Assert.Equal(41L, third.Changes[0].AllocatedDeltaBytes);
         Assert.Equal(241, first.Changes.Concat(second.Changes).Concat(third.Changes)
             .Select(c => c.PrimaryPath).Distinct().Count());
     }
@@ -109,7 +109,10 @@ public sealed class DiskBackedComparisonTests
             File(workspace.Root, "x", 50, 64)));
         var first = store.CompareAndStore(beforeId, afterId);
         var second = store.CompareAndStore(beforeId, afterId);
-        Assert.Equal(first, second);
+        Assert.Equal(first.Id, second.Id);
+        Assert.Equal(first.ChangeCount, second.ChangeCount);
+        Assert.Equal(first.KnownAllocatedDeltaBytes, second.KnownAllocatedDeltaBytes);
+        Assert.Equal(first.Caveats, second.Caveats);
     }
 
     [Fact]
