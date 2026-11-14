@@ -289,6 +289,11 @@ public partial class MainWindow : Window
                 store.BuildFolderSummary(report.Id, token, folderProgress));
             showComparisonProgress = false;
             _activeFolderSummary = folders;
+            FolderTotalsText.Text =
+                $"{folders.RootPath} · Net known allocation change: " +
+                $"{Signed(folders.RootKnownNetDeltaBytes)} · " +
+                $"{folders.FolderCount:N0} descendant folders with changes · " +
+                $"{folders.RootUnknownAllocationGroups:N0} unknown groups";
             await LoadFolderPageAsync(0);
             StatusText.Text = $"Comparison #{baseline.Id} → #{current.Id}: " +
                 $"{report.ChangeCount:N0} changed file groups";
@@ -340,6 +345,7 @@ public partial class MainWindow : Window
     {
         _activeComparison = null;
         _activeFolderSummary = null;
+        FolderTotalsText.Text = "No folder summary loaded";
         _pageOffset = 0;
         _folderOffset = 0;
         _folderGrowthFirst = true;
