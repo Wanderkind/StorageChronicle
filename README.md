@@ -2,7 +2,7 @@
 
 A local, read-only Windows disk-space **snapshot comparator** built with .NET 10 and WPF.
 
-**Status:** Phase 1G launched on Windows and saved a shadow-storage reading, but the Windows client WMI query reported an initialization failure and saved Unavailable (not zero). The read-only vssadmin fallback is now committed but **not yet built or tested on Windows**. Do not delete files based on unassigned residuals; verify paths, timestamps and measurement limitations.
+**Status:** Phase 1G's read-only vssadmin fallback launched on Windows but returned exit code 2 without elevation; the same listing succeeded in an administrator PowerShell session. The subsequent privilege-guidance and copy-command update is **not yet compiled or tested on Windows**. Never attribute current VSS allocation to older filesystem changes without matched-time evidence.
 
 ## What it does now
 
@@ -17,6 +17,7 @@ A local, read-only Windows disk-space **snapshot comparator** built with .NET 10
 - Phase 1F adds a **Reconciliation** tab: observed free-space loss, constant-capacity used-space change, known file allocation delta, unassigned residual, scan-time free-space drift, and explicit measurement limitations.
 - Separates observed free-space loss from the **provisional residual** it cannot explain; missing or changed volume capacity disables used-space reconciliation rather than substituting zero.
 - Phase 1G adds an opt-in **Shadow storage** tab with timestamped WMI measurements (may be unavailable on Windows clients) and a separate read-only **Check via vssadmin** fallback showing unparsed localized diagnostic output. Neither retroactively attributes VSS usage to earlier scans nor subtracts it from residuals.
+- The Windows client privilege-guidance correction adds **Copy admin commands** for fixed /on and /for checks and reports whether the app has an elevated administrator token. No automatic UAC or elevation is performed.
 - Never deletes or modifies scanned files.
 
 ## Start on Windows
